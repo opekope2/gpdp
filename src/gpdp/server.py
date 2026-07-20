@@ -1,10 +1,10 @@
-from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import FastAPI, Path, Response
 from fastapi.responses import PlainTextResponse
 
-from src.gpdp.util.streamed_zip import (
+from gpdp.util.di import inject
+from gpdp.util.streamed_zip import (
     FileHeader,
     end_of_central_directory,
     zip_file_size,
@@ -14,11 +14,6 @@ MEDIA_TYPE_APK = "application/vnd.android.package-archive"
 MEDIA_TYPE_ZIP = "application/zip"
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
-
-
 def get_download_headers(entries: list[FileHeader]):
     return {
         "Content-Size": str(zip_file_size(entries)),
@@ -26,7 +21,7 @@ def get_download_headers(entries: list[FileHeader]):
     }
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=inject)
 
 
 @app.get("/favicon.ico")
