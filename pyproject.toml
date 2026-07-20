@@ -1,0 +1,59 @@
+[project]
+name = "GPDP"
+description = "Google Play Download Proxy"
+readme = "README.md"
+requires-python = ">= 3.14"
+license = "GPL-3.0-or-later"
+license-files = ["COPYING"]
+dependencies = [
+  "fastapi",
+  "gpapi",
+  "httpx",
+  "pyrefly",
+  "ruff",
+  "types-protobuf",
+  "uvicorn",
+]
+dynamic = ["version"]
+
+[[project.authors]]
+name = "opekope2"
+
+[project.urls]
+Homepage = "https://github.com/opekope2/GPDP"
+Issues = "https://github.com/opekope2/GPDP/issues"
+Repository = "https://github.com/opekope2/GPDP"
+
+[build-system]
+requires = ["setuptools >= 83.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pyrefly]
+project-includes = ["**/*.py*", "**/*.ipynb"]
+search-path = [".", "stubs"]
+preset = "strict"
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "I",  # isort import sorting
+  "UP",  # modernize Python syntax
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gpdp"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
