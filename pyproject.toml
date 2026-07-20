@@ -52,6 +52,9 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["gpdp"]
 
+[tool.setuptools.dynamic]
+version.attr = "gpdp.__version__"
+
 [tool.setuptools.package-dir]
 "" = "src"
 
