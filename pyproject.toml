@@ -9,9 +9,10 @@ dependencies = [
   "fastapi",
   "gpapi",
   "httpx",
+  "protobuf >= 3.20.3, < 4.0.0",
   "pyrefly",
   "ruff",
-  "types-protobuf",
+  "types-protobuf >= 3.20.3, < 4.0.0",
   "uvicorn",
 ]
 dynamic = ["version"]
