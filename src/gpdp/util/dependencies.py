@@ -11,7 +11,7 @@ from gpdp.services.play_api import PlayApiService
 async def inject(app: FastAPI):
     gpdp_logging.setup()
 
-    async with AsyncClient() as client:
+    async with AsyncClient(follow_redirects=True) as client:
         app.state.http_client = client
         app.state.play_api = PlayApiService(client)
         yield
