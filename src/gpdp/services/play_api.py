@@ -10,25 +10,22 @@ from httpx import AsyncClient
 import gpdp.util.logging as gpdp_logging
 import gpdp.util.xapk as xapk
 import gpdp.util.zip as zip
+from gpdp.http.content_types import CONTENT_TYPE_X_WWW_FORM_URLENCODED
 from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
+from gpdp.services.play_auth import PlayAuthService
 from gpdp.util.logging import PKG
 from gpdp.util.zip import FileHeader
 
-CONTENT_TYPE_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded"
-
-
-def get_auth_headers(accept_language: str = "en-US"):
-    raise NotImplementedError()
-
 
 class PlayApiService:
-    def __init__(self, http: AsyncClient):
+    def __init__(self, http: AsyncClient, auth: PlayAuthService):
         self.http = http
+        self.auth = auth
         self.logger = gpdp_logging.get_logger(self)
 
     @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Getting details")
     async def app_details(self, package: str):
-        headers = get_auth_headers() | {
+        headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
         }
@@ -65,7 +62,7 @@ class PlayApiService:
                     detail=f"Paid app: {price}",
                 )
 
-        headers = get_auth_headers() | {
+        headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_X_WWW_FORM_URLENCODED,
         }
@@ -81,7 +78,7 @@ class PlayApiService:
 
     @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Delivering")
     async def app_delivery(self, package: str, ver_code: int, purchased: bool = False):
-        headers = get_auth_headers() | {
+        headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
         }
@@ -149,7 +146,7 @@ class PlayApiService:
         self, delivery: AndroidAppDeliveryData, entries: list[zip.FileHeader]
     ):
         cookie = "; ".join(f"{c.name}={c.value}" for c in delivery.downloadAuthCookie)
-        headers = get_auth_headers() | {
+        headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
             COOKIE: cookie,

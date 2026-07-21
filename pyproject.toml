@@ -9,6 +9,7 @@ dependencies = [
   "fastapi",
   "gpapi",
   "httpx",
+  "jproperties",
   "protobuf >= 3.20.3, < 4.0.0",
   "pyrefly",
   "ruff",

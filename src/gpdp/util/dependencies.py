@@ -1,24 +1,48 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from httpx import AsyncClient
 
+import gpdp.util.device as device
 import gpdp.util.logging as gpdp_logging
 from gpdp.services.play_api import PlayApiService
+from gpdp.services.play_auth import ENV_DISPENSER_URL, PlayAuthService
+from gpdp.util.device import DEFAULT_DEVICE_CONF, ENV_DEVICE_CONF
+
+
+def require_env(key: str):
+    env = os.getenv(key)
+    if env:
+        return env
+
+    raise RuntimeError(f"Environment variable {key} is not set")
 
 
 @asynccontextmanager
 async def inject(app: FastAPI):
     gpdp_logging.setup()
+    dispenser_url = require_env(ENV_DISPENSER_URL)
+    device_conf = os.getenv(ENV_DEVICE_CONF, DEFAULT_DEVICE_CONF)
 
     async with AsyncClient(follow_redirects=True) as client:
         app.state.http_client = client
-        app.state.play_api = PlayApiService(client)
+        app.state.play_auth = play_auth = PlayAuthService(
+            client, dispenser_url, device.load(device_conf)
+        )
+        app.state.play_api = PlayApiService(client, play_auth)
+
+        await play_auth.auth_dispenser()  # TODO
+
         yield
 
 
 def http_client(req: Request) -> AsyncClient:
     return req.app.state.http_client
+
+
+def play_auth(req: Request) -> PlayAuthService:
+    return req.app.state.play_auth
 
 
 def play_api(req: Request) -> PlayApiService:

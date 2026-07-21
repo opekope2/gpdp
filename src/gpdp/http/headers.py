@@ -1,5 +1,8 @@
 ACCEPT = "Accept"
+ACCEPT_LANGUAGE = "Accept-Language"
+AUTHORIZATION = "Authorization"
 CONTENT_DISPOSITION = "Content-Disposition"
 CONTENT_LENGTH = "Content-Length"
 CONTENT_TYPE = "Content-Type"
 COOKIE = "Cookie"
+USER_AGENT = "User-Agent"
