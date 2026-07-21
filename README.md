@@ -4,6 +4,15 @@
 
 Run `uvicorn gpdp.server:app`
 
+### Environment variables
+
+#### `GPDP_LOGGING_CONF`
+
+Path to `logging.json`.
+See [Logging configuration](https://docs.python.org/3/library/logging.config.html#logging-config-dictschema).
+
+Defaults to `logging.json`
+
 ## Stubs
 
 `googleplay-api` doesn't ship with `.pyi` files, making IntelliSense unusable.
