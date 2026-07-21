@@ -7,4 +7,8 @@
         "source.fixAll.ruff": "explicit",
         "source.organizeImports.ruff": "explicit"
     },
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.egg-info": true,
+    },
 }
