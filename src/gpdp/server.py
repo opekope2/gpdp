@@ -42,7 +42,7 @@ async def app_info(
 async def download_xapk(
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
-    version_code: Annotated[int, Path()],
+    version_code: Annotated[int, Path(gt=0)],
 ):
     delivery = await play_api.app_delivery(package_id, version_code)
     entries = play_api.xapk_create_entries(package_id, delivery)

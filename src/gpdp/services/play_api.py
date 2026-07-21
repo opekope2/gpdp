@@ -43,7 +43,8 @@ class PlayApiService:
         response.ParseFromString(res.content)
 
         app = response.payload.detailsResponse.docV2
-        if not app.docid:
+        details = app.details.appDetails
+        if not app.docid or details.versionCode == 0:
             self.logger.error("Not available", extra={PKG: package})
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="App not available"
