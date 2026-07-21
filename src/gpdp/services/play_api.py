@@ -1,4 +1,5 @@
 import datetime
+import operator
 from collections import deque
 
 from fastapi import HTTPException, status
@@ -25,6 +26,7 @@ class PlayApiService:
         self.http = http
         self.logger = gpdp_logging.get_logger(self)
 
+    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Getting details")
     async def app_details(self, package: str):
         headers = get_auth_headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
@@ -49,11 +51,14 @@ class PlayApiService:
 
         return app
 
+    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Purchasing")
     async def purchase(self, package: str, app: DocV2):
         for offer in app.offer:
             if offer.offerType == 1 and offer.micros > 0:
                 price = offer.formattedAmount or "paid"
-                self.logger.error("Paid app: %s", price, extra={PKG: package})
+                self.logger.error(
+                    "Purchase failed: paid app: %s", price, extra={PKG: package}
+                )
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
                     detail=f"Paid app: {price}",
@@ -66,12 +71,15 @@ class PlayApiService:
         data = {"doc": package, "ot": 1, "vc": app.details.appDetails.versionCode}
 
         res = await self.http.post(PURCHASE_URL, headers=headers, data=data)
-        if res.is_error:
+        if res.is_success:
+            self.logger.info("Purchase successful", extra={PKG: package})
+        else:
             self.logger.warning(
                 "Purchase failed: %s", res.status_code, extra={PKG: package}
             )
 
-    async def app_delivery(self, package: str, ver_code: int):
+    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Delivering")
+    async def app_delivery(self, package: str, ver_code: int, purchased: bool = False):
         headers = get_auth_headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
@@ -101,7 +109,8 @@ class PlayApiService:
 
         return delivery
 
-    def xapk_create_entries(self, package_id: str, delivery: AndroidAppDeliveryData):
+    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Creating XAPK")
+    def xapk_create_entries(self, package: str, delivery: AndroidAppDeliveryData):
         now = datetime.datetime.now()
 
         base_apk = FileHeader(now, delivery.downloadSize, xapk.BASE_NAME, b"", "")
@@ -109,7 +118,7 @@ class PlayApiService:
             FileHeader(now, s.size, xapk.split_name(s), b"", "") for s in delivery.split
         ]
         additional_entries = [
-            FileHeader(now, f.size, xapk.obb_path(package_id, f), b"", "")
+            FileHeader(now, f.size, xapk.obb_path(package, f), b"", "")
             for f in delivery.additionalFile
         ]
 
