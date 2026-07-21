@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import struct
 import zlib
 from collections.abc import Buffer
-from dataclasses import dataclass
 
 LOCAL_FILE_HEADER_SIGNATURE = 0x04034B50
 CENTRAL_FILE_HEADER_SIGNATURE = 0x02014B50
@@ -40,16 +40,16 @@ def local_header_offset(entry: FileHeader, entries: list[FileHeader]):
     raise ValueError("File header was not found in entries")
 
 
-@dataclass
+@dataclasses.dataclass
 class FileHeader:
-    last_mod_file_time: datetime.time  # 2
-    last_mod_file_date: datetime.date  # 2
-    crc32: int  # 4
-    compressed_size: int  # 4
-    uncompressed_size: int  # 4
+    last_mod_file_time_date: datetime.datetime  # 2 + 2
+    size: int  # 4 + 4
     file_name: str  # 2
     extra_field: bytes  # 2
     file_comment: str  # 2
+
+    def __post_init__(self):
+        self.crc32 = 0  # 4
 
     def local_header(self):
         file_name_bytes = self.file_name.encode()
@@ -59,8 +59,8 @@ class FileHeader:
             ZIP_VERSION_2,
             FLAG_DATA_DESCRIPTOR | FLAG_LANGUAGE_ENCODING,
             COMPRESSION_NONE,
-            time_to_msdos(self.last_mod_file_time),
-            date_to_msdos(self.last_mod_file_date),
+            time_to_msdos(self.last_mod_file_time_date.time()),
+            date_to_msdos(self.last_mod_file_time_date.date()),
             SUPPLIED_IN_DATA_DESCRIPTOR,
             SUPPLIED_IN_DATA_DESCRIPTOR,
             SUPPLIED_IN_DATA_DESCRIPTOR,
@@ -77,12 +77,10 @@ class FileHeader:
         self.crc32 = zlib.crc32(chunk, self.crc32)
 
     def data_descriptor(self):
-        return struct.pack(
-            "<III", self.crc32, self.compressed_size, self.uncompressed_size
-        )
+        return struct.pack("<III", self.crc32, self.size, self.size)
 
     def file_header_data_descriptor_size(self):
-        return self.local_header_size() + self.compressed_size + 12
+        return self.local_header_size() + self.size + 12
 
     def central_directory_header(self, entries: list[FileHeader]):
         file_name_bytes = self.file_name.encode()
@@ -94,11 +92,11 @@ class FileHeader:
             ZIP_VERSION_2,
             FLAG_DATA_DESCRIPTOR | FLAG_LANGUAGE_ENCODING,
             COMPRESSION_NONE,
-            time_to_msdos(self.last_mod_file_time),
-            date_to_msdos(self.last_mod_file_date),
+            time_to_msdos(self.last_mod_file_time_date.time()),
+            date_to_msdos(self.last_mod_file_time_date.date()),
             self.crc32,
-            self.compressed_size,
-            self.uncompressed_size,
+            self.size,
+            self.size,
             len(file_name_bytes),
             len(self.extra_field),
             len(file_comment_bytes),
@@ -142,7 +140,7 @@ def end_of_central_directory_size(zip_file_comment: str = ""):
     return 22 + len(zip_file_comment_bytes)
 
 
-def zip_file_size(entries: list[FileHeader], zip_file_comment: str = ""):
+def file_size(entries: list[FileHeader], zip_file_comment: str = ""):
     return sum(
         e.file_header_data_descriptor_size() + e.central_directory_header_size()
         for e in entries
