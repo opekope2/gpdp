@@ -44,7 +44,6 @@ async def download_xapk(
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
     version_code: Annotated[int, Path()],
 ):
-    # TODO purchase
     delivery = await play_api.app_delivery(package_id, version_code)
     entries = play_api.xapk_create_entries(package_id, delivery)
 

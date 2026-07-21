@@ -100,6 +100,11 @@ class PlayApiService:
         delivery = response.payload.deliveryResponse.appDeliveryData
 
         if not delivery.downloadUrl:
+            if not purchased:
+                app = await self.app_details(package)
+                await self.purchase(package, app)
+                return await self.app_delivery(package, ver_code, purchased=True)
+
             self.logger.error(
                 "Download not available: %s", res.status_code, extra={PKG: package}
             )
