@@ -2,6 +2,7 @@ from gpapi.googleplay_pb2 import AppFileMetadata, Split
 
 BASE_NAME = "base.apk"
 OBB_TYPE = ["main", "patch"]
+OBB_PATH = "Android/obb/"
 
 
 def split_name(split: Split):
@@ -10,7 +11,3 @@ def split_name(split: Split):
 
 def obb_name(package: str, obb: AppFileMetadata):
     return f"{OBB_TYPE[obb.fileType]}.{obb.versionCode}.{package}.obb"
-
-
-def obb_path(package: str, obb: AppFileMetadata):
-    return f"Android/obb/{package}/{obb_name(package, obb)}"

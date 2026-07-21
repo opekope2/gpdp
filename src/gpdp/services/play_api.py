@@ -123,7 +123,7 @@ class PlayApiService:
             FileHeader(now, s.size, xapk.split_name(s), b"", "") for s in delivery.split
         ]
         additional_entries = [
-            FileHeader(now, f.size, xapk.obb_path(package, f), b"", "")
+            FileHeader(now, f.size, xapk.OBB_PATH + xapk.obb_name(package, f), b"", "")
             for f in delivery.additionalFile
         ]
 
