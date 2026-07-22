@@ -16,12 +16,11 @@ async def inject(app: FastAPI):
     logging.setup()
     config = gpdp.config.load()
     device_conf = os.getenv(ENV_DEVICE_CONF, DEFAULT_DEVICE_CONF)
+    dev = device.load(device_conf)
 
     async with AsyncClient(follow_redirects=True) as client:
         app.state.http_client = client
-        app.state.play_auth = play_auth = PlayAuthService(
-            client, config, device.load(device_conf)
-        )
+        app.state.play_auth = play_auth = PlayAuthService(client, config, dev)
         app.state.play_api = PlayApiService(client, play_auth)
 
         await play_auth.auth_dispenser()  # TODO

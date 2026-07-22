@@ -12,6 +12,7 @@ dependencies = [
   "httpx",
   "jproperties",
   "protobuf >= 3.20.3, < 4.0.0",
+  "pydantic",
   "pyrefly",
   "ruff",
   "types-protobuf >= 3.20.3, < 4.0.0",

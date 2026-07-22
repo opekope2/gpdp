@@ -19,6 +19,7 @@ from gpdp.http.headers import (
     USER_AGENT,
 )
 from gpdp.util import logging
+from gpdp.util.device import DeviceProperties
 from gpdp.util.logging import STATUS
 
 P = ParamSpec("P")
@@ -59,7 +60,7 @@ class AuthBundle:
 
 
 class PlayAuthService:
-    def __init__(self, http: AsyncClient, config: Config, device: dict[Any, Any]):
+    def __init__(self, http: AsyncClient, config: Config, device: DeviceProperties):
         self.http = http
         self.logger = logging.get_logger(self)
         self.dispenser_url = config.dispenser_url
@@ -68,31 +69,11 @@ class PlayAuthService:
         self.last_auth = 0
         self.auth_lock = Lock()
 
-    def build_user_agent(self):
-        def prop(name: str):
-            return self.device.get(name, "")
-
-        return (
-            f"Android-Finsky/{prop('Vending.versionString')} ("
-            f"api={3},"
-            f"versionCode={prop('Vending.version')},"
-            f"sdk={prop('Build.VERSION.SDK_INT')},"
-            f"device={prop('Build.DEVICE')},"
-            f"hardware={prop('Build.HARDWARE')},"
-            f"product={prop('Build.PRODUCT')},"
-            f"platformVersionRelease={prop('Build.VERSION.RELEASE')},"
-            f"model={prop('Build.MODEL')},"
-            f"buildId={prop('Build.ID')},"
-            f"isWideScreen={0},"
-            f"supportedAbis={prop('Platforms')}"
-            f")"
-        )
-
     @logging.log_info(logging.SELF_LOGGER, "Authenticating with dispenser")
     async def _auth_dispenser(self):
         res = await self.http.post(
             self.dispenser_url,
-            json=self.device,
+            json=self.device.model_dump(by_alias=True),
             headers={ACCEPT: CONTENT_TYPE_JSON, CONTENT_TYPE: CONTENT_TYPE_JSON},
         )
         res.raise_for_status()
@@ -104,7 +85,7 @@ class PlayAuthService:
 
         self.auth_bundle = AuthBundle(
             auth_token,
-            auth.get("userAgentString", self.build_user_agent()),
+            auth.get("userAgentString", self.device.user_agent()),
             auth.get("gsfId", ""),
             auth.get("dfeCookie", ""),
             auth.get("deviceCheckInConsistencyToken"),
