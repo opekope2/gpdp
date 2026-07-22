@@ -11,7 +11,7 @@ from http import HTTPStatus
 from logging import Logger, LogRecord
 from typing import Any, Concatenate, Literal, ParamSpec, TypeVar, override
 
-from uvicorn._ansi import style as ansi_style
+from uvicorn import _ansi
 from uvicorn.logging import AccessFormatter, ColourizedFormatter
 
 ENV_LOGGING_CONF = "GPDP_LOGGING_CONF"
@@ -111,6 +111,6 @@ class ColorfulFormatter(ColourizedFormatter):
             if not hasattr(record, extra):
                 setattr(record, extra, "")
             else:
-                setattr(record, extra, ansi_style(getattr(record, extra), fg=fg))
+                setattr(record, extra, _ansi.style(getattr(record, extra), fg=fg))
 
         return super().formatMessage(record)

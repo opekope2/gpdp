@@ -9,7 +9,6 @@ from typing import Any, Concatenate, ParamSpec, TypeVar
 from fastapi import HTTPException, status
 from httpx import AsyncClient, HTTPStatusError
 
-import gpdp.util.logging as gpdp_logging
 from gpdp.config import Config
 from gpdp.http.content_types import CONTENT_TYPE_JSON
 from gpdp.http.headers import (
@@ -19,6 +18,7 @@ from gpdp.http.headers import (
     CONTENT_TYPE,
     USER_AGENT,
 )
+from gpdp.util import logging
 from gpdp.util.logging import STATUS
 
 P = ParamSpec("P")
@@ -61,7 +61,7 @@ class AuthBundle:
 class PlayAuthService:
     def __init__(self, http: AsyncClient, config: Config, device: dict[Any, Any]):
         self.http = http
-        self.logger = gpdp_logging.get_logger(self)
+        self.logger = logging.get_logger(self)
         self.dispenser_url = config.dispenser_url
         self.refresh_cooldown = config.dispenser_refresh_cooldown
         self.device = device
@@ -88,7 +88,7 @@ class PlayAuthService:
             f")"
         )
 
-    @gpdp_logging.log_info(gpdp_logging.SELF_LOGGER, "Authenticating with dispenser")
+    @logging.log_info(logging.SELF_LOGGER, "Authenticating with dispenser")
     async def _auth_dispenser(self):
         res = await self.http.post(
             self.dispenser_url,

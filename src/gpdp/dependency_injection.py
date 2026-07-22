@@ -5,24 +5,15 @@ from fastapi import FastAPI, Request
 from httpx import AsyncClient
 
 import gpdp.config
-import gpdp.util.device as device
-import gpdp.util.logging as gpdp_logging
 from gpdp.services.play_api import PlayApiService
 from gpdp.services.play_auth import PlayAuthService
+from gpdp.util import device, logging
 from gpdp.util.device import DEFAULT_DEVICE_CONF, ENV_DEVICE_CONF
-
-
-def require_env(key: str):
-    env = os.getenv(key)
-    if env:
-        return env
-
-    raise RuntimeError(f"Environment variable {key} is not set")
 
 
 @asynccontextmanager
 async def inject(app: FastAPI):
-    gpdp_logging.setup()
+    logging.setup()
     config = gpdp.config.load()
     device_conf = os.getenv(ENV_DEVICE_CONF, DEFAULT_DEVICE_CONF)
 

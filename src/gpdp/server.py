@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Path, Response, status
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-import gpdp.util.dependencies as deps
-import gpdp.util.zip as zip
+import gpdp.dependency_injection as deps
 from gpdp.http.headers import CONTENT_DISPOSITION, CONTENT_LENGTH
 from gpdp.services.play_api import PlayApiService
+from gpdp.util import zip
 
 MEDIA_TYPE_ZIP = "application/zip"
 PACKAGE_ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
