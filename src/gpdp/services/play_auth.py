@@ -62,35 +62,66 @@ class PlayAuthService:
     def __init__(self, http: AsyncClient, config: Config, device: dict[Any, Any]):
         self.http = http
         self.logger = gpdp_logging.get_logger(self)
-        self.url = config.dispenser_url
+        self.dispenser_url = config.dispenser_url
         self.refresh_cooldown = config.dispenser_refresh_cooldown
         self.device = device
+        self.last_auth = 0
+        self.auth_lock = Lock()
 
-    async def auth_dispenser(self):
+    def build_user_agent(self):
+        def prop(name: str):
+            return self.device.get(name, "")
+
+        return (
+            f"Android-Finsky/{prop('Vending.versionString')} ("
+            f"api={3},"
+            f"versionCode={prop('Vending.version')},"
+            f"sdk={prop('Build.VERSION.SDK_INT')},"
+            f"device={prop('Build.DEVICE')},"
+            f"hardware={prop('Build.HARDWARE')},"
+            f"product={prop('Build.PRODUCT')},"
+            f"platformVersionRelease={prop('Build.VERSION.RELEASE')},"
+            f"model={prop('Build.MODEL')},"
+            f"buildId={prop('Build.ID')},"
+            f"isWideScreen={0},"
+            f"supportedAbis={prop('Platforms')}"
+            f")"
+        )
+
+    @gpdp_logging.log_info(gpdp_logging.SELF_LOGGER, "Authenticating with dispenser")
+    async def _auth_dispenser(self):
         res = await self.http.post(
-            self.url,
+            self.dispenser_url,
             json=self.device,
             headers={ACCEPT: CONTENT_TYPE_JSON, CONTENT_TYPE: CONTENT_TYPE_JSON},
         )
         res.raise_for_status()
 
         auth: dict[str, Any] = res.json()
-        device_info: dict[str, Any] = auth.get("deviceInfoProvider", {})
-        authToken = auth.get("authToken")
-        userAgent = device_info.get("userAgentString")
-
-        if not authToken or not userAgent:
-            raise RuntimeError()  # TODO
+        auth_token = auth.get("authToken")
+        if not auth_token:
+            raise HTTPStatusError("No authToken", request=res.request, response=res)
 
         self.auth_bundle = AuthBundle(
-            authToken,
-            userAgent,
+            auth_token,
+            auth.get("userAgentString", self.build_user_agent()),
             auth.get("gsfId", ""),
             auth.get("dfeCookie", ""),
             auth.get("deviceCheckInConsistencyToken"),
             auth.get("deviceConfigToken"),
-            device_info.get("mccMnc"),
+            auth.get("deviceInfoProvider", {}).get("mccMnc"),
         )
+
+    async def auth_dispenser(self):
+        if time.time() < self.last_auth + self.refresh_cooldown:
+            return
+
+        async with self.auth_lock:
+            if time.time() < self.last_auth + self.refresh_cooldown:
+                return
+
+            self.last_auth = int(time.time())
+            await self._auth_dispenser()
 
     def headers(self, accept_language: str = "en-US"):
         optional_headers = {
@@ -110,7 +141,7 @@ class PlayAuthService:
             "X-DFE-Content-Filters": "",
             "X-Limit-Ad-Tracking-Enabled": "false",
             "X-Ad-Id": "",
-            "X-DFE-UserLanguages": "",  # TODO
+            "X-DFE-UserLanguages": accept_language.replace("-", "_"),
             "X-DFE-Request-Params": "timeoutMs=4000",
             "X-DFE-Cookie": self.auth_bundle.dfeCookie,
             "X-DFE-No-Prefetch": "true",
