@@ -3,14 +3,29 @@
     "disable_existing_loggers": false,
     "formatters": {
         "default": {
-            "()": "uvicorn.logging.DefaultFormatter",
-            "fmt": "%(levelprefix)s %(message)s",
-            "use_colors": null
+            "()": "gpdp.util.logging.ColorfulFormatter",
+            "fmt": "%(levelprefix)s %(message)s %(status_code)s",
+            "extra_colors": {
+                "status_code": null
+            }
+        },
+        "package": {
+            "()": "gpdp.util.logging.ColorfulFormatter",
+            "fmt": "%(levelprefix)s %(package)s: %(message)s %(status_code)s",
+            "extra_colors": {
+                "package": "cyan",
+                "status_code": null
+            }
         }
     },
     "handlers": {
         "default": {
             "formatter": "default",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr"
+        },
+        "package": {
+            "formatter": "package",
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stderr"
         }
@@ -19,6 +34,13 @@
         "gpdp": {
             "handlers": [
                 "default"
+            ],
+            "level": "INFO",
+            "propagate": false
+        },
+        "gpdp.services.play_api.PlayApiService": {
+            "handlers": [
+                "package"
             ],
             "level": "INFO",
             "propagate": false

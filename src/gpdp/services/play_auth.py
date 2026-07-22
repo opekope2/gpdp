@@ -1,7 +1,13 @@
 import dataclasses
-from typing import Any
+import functools
+import time
+from asyncio import Lock
+from collections.abc import Callable, Coroutine
+from logging import Logger
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
-from httpx import AsyncClient
+from fastapi import HTTPException, status
+from httpx import AsyncClient, HTTPStatusError
 
 import gpdp.util.logging as gpdp_logging
 from gpdp.config import Config
@@ -13,8 +19,32 @@ from gpdp.http.headers import (
     CONTENT_TYPE,
     USER_AGENT,
 )
+from gpdp.util.logging import STATUS
 
-ENV_DISPENSER_URL = "GPDP_DISPENSER_URL"
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def httpx_error_to_fastapi(logger_getter: Callable[[Any], Logger]):
+    def decorator(func: Callable[Concatenate[Any, P], Coroutine[Any, Any, R]]):
+        @functools.wraps(func)
+        async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs):
+            try:
+                return await func(self, *args, **kwargs)
+            except HTTPStatusError as e:
+                res = e.response
+                logger_getter(self).error(
+                    "Dispenser error: %s",
+                    res.json().get("error"),
+                    extra={STATUS: res.status_code},
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY, detail="Dispenser error"
+                )
+
+        return wrapper
+
+    return decorator
 
 
 @dataclasses.dataclass

@@ -1,19 +1,23 @@
 import datetime
 import operator
 from collections import deque
+from collections.abc import Callable, Coroutine
+from http import HTTPMethod
+from typing import Any
 
 from fastapi import HTTPException, status
 from gpapi.googleplay import CONTENT_TYPE_PROTO, DELIVERY_URL, DETAILS_URL, PURCHASE_URL
 from gpapi.googleplay_pb2 import AndroidAppDeliveryData, DocV2, ResponseWrapper
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 
+import gpdp.services.play_auth as play_auth
 import gpdp.util.logging as gpdp_logging
 import gpdp.util.xapk as xapk
 import gpdp.util.zip as zip
 from gpdp.http.content_types import CONTENT_TYPE_X_WWW_FORM_URLENCODED
 from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
 from gpdp.services.play_auth import PlayAuthService
-from gpdp.util.logging import PKG
+from gpdp.util.logging import PKG, SELF_LOGGER, STATUS
 from gpdp.util.zip import FileHeader
 
 
@@ -23,15 +27,31 @@ class PlayApiService:
         self.auth = auth
         self.logger = gpdp_logging.get_logger(self)
 
-    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Getting details")
+    @play_auth.httpx_error_to_fastapi(operator.attrgetter("auth.logger"))
+    async def request(self, f: Callable[[], Coroutine[Any, Any, Response]]):
+        res = await f()
+        if res.status_code == status.HTTP_401_UNAUTHORIZED:
+            await self.auth.auth_dispenser()
+            res = await f()
+        if res.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY, detail="Auth token expired"
+            )
+        return res
+
+    @gpdp_logging.package_request_info(SELF_LOGGER, "Getting details")
     async def app_details(self, package: str):
         headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
         }
-        res = await self.http.get(f"{DETAILS_URL}?doc={package}", headers=headers)
+        res = await self.request(
+            lambda: self.http.get(f"{DETAILS_URL}?doc={package}", headers=headers)
+        )
         if res.is_error:
-            self.logger.error("Not found (%s)", res.status_code, extra={PKG: package})
+            self.logger.error(
+                "Not found", extra={PKG: package, STATUS: res.status_code}
+            )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="App not found"
             )
@@ -42,14 +62,16 @@ class PlayApiService:
         app = response.payload.detailsResponse.docV2
         details = app.details.appDetails
         if not app.docid or details.versionCode == 0:
-            self.logger.error("Not available", extra={PKG: package})
+            self.logger.error(
+                "Not available", extra={PKG: package, STATUS: res.status_code}
+            )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="App not available"
             )
 
         return app
 
-    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Purchasing")
+    @gpdp_logging.package_request_info(SELF_LOGGER, "Purchasing")
     async def purchase(self, package: str, app: DocV2):
         for offer in app.offer:
             if offer.offerType == 1 and offer.micros > 0:
@@ -68,26 +90,32 @@ class PlayApiService:
         }
         data = {"doc": package, "ot": 1, "vc": app.details.appDetails.versionCode}
 
-        res = await self.http.post(PURCHASE_URL, headers=headers, data=data)
+        res = await self.request(
+            lambda: self.http.post(PURCHASE_URL, headers=headers, data=data)
+        )
         if res.is_success:
-            self.logger.info("Purchase successful", extra={PKG: package})
+            self.logger.info(
+                "Purchase successful", extra={PKG: package, STATUS: res.status_code}
+            )
         else:
             self.logger.warning(
-                "Purchase failed: %s", res.status_code, extra={PKG: package}
+                "Purchase failed", extra={PKG: package, STATUS: res.status_code}
             )
 
-    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Delivering")
+    @gpdp_logging.package_request_info(SELF_LOGGER, "Delivering")
     async def app_delivery(self, package: str, ver_code: int, purchased: bool = False):
         headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
         }
-        res = await self.http.get(
-            f"{DELIVERY_URL}?doc={package}&ot=1&vc={ver_code}", headers=headers
+        res = await self.request(
+            lambda: self.http.get(
+                f"{DELIVERY_URL}?doc={package}&ot=1&vc={ver_code}", headers=headers
+            )
         )
         if res.is_error:
             self.logger.error(
-                "Delivery not available: %s", res.status_code, extra={PKG: package}
+                "Delivery not available", extra={PKG: package, STATUS: res.status_code}
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not available"
@@ -104,7 +132,8 @@ class PlayApiService:
                 return await self.app_delivery(package, ver_code, purchased=True)
 
             self.logger.error(
-                "Download not available: %s", res.status_code, extra={PKG: package}
+                "Download not available",
+                extra={PKG: package, STATUS: res.status_code},
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Download not available"
@@ -112,7 +141,7 @@ class PlayApiService:
 
         return delivery
 
-    @gpdp_logging.package_request_info(operator.attrgetter("logger"), "Creating XAPK")
+    @gpdp_logging.package_request_info(SELF_LOGGER, "Creating XAPK")
     def xapk_create_entries(self, package: str, delivery: AndroidAppDeliveryData):
         now = datetime.datetime.now()
 
@@ -134,7 +163,7 @@ class PlayApiService:
     ):
         yield entry.local_header()
 
-        async with self.http.stream("GET", url, headers=headers) as res:
+        async with self.http.stream(HTTPMethod.GET, url, headers=headers) as res:
             res.raise_for_status()  # TODO
             async for chunk in res.aiter_bytes():
                 entry.update_crc32(chunk)
