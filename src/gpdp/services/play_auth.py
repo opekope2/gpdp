@@ -4,6 +4,7 @@ from typing import Any
 from httpx import AsyncClient
 
 import gpdp.util.logging as gpdp_logging
+from gpdp.config import Config
 from gpdp.http.content_types import CONTENT_TYPE_JSON
 from gpdp.http.headers import (
     ACCEPT,
@@ -28,10 +29,11 @@ class AuthBundle:
 
 
 class PlayAuthService:
-    def __init__(self, http: AsyncClient, dispenser_url: str, device: dict[Any, Any]):
+    def __init__(self, http: AsyncClient, config: Config, device: dict[Any, Any]):
         self.http = http
         self.logger = gpdp_logging.get_logger(self)
-        self.url = dispenser_url
+        self.url = config.dispenser_url
+        self.refresh_cooldown = config.dispenser_refresh_cooldown
         self.device = device
 
     async def auth_dispenser(self):
