@@ -1,5 +1,4 @@
 import datetime
-import operator
 from collections import deque
 from collections.abc import Callable, Coroutine
 from http import HTTPMethod
@@ -25,7 +24,7 @@ class PlayApiService:
         self.auth = auth
         self.logger = logging.get_logger(self)
 
-    @play_auth.httpx_error_to_fastapi(operator.attrgetter("auth.logger"))
+    @play_auth.dispenser_error_to_fastapi
     async def request(self, f: Callable[[], Coroutine[Any, Any, Response]]):
         res = await f()
         if res.status_code == status.HTTP_401_UNAUTHORIZED:

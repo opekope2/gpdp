@@ -1,13 +1,12 @@
-import dataclasses
 import functools
 import time
 from asyncio import Lock
 from collections.abc import Callable, Coroutine
-from logging import Logger
 from typing import Any, Concatenate, ParamSpec, TypeVar
 
 from fastapi import HTTPException, status
 from httpx import AsyncClient, HTTPStatusError
+from pydantic import BaseModel, Field, ValidationError
 
 from gpdp.config import Config
 from gpdp.http.content_types import CONTENT_TYPE_JSON
@@ -20,43 +19,59 @@ from gpdp.http.headers import (
 )
 from gpdp.util import logging
 from gpdp.util.device import DeviceProperties
-from gpdp.util.logging import STATUS
+from gpdp.util.logging import SELF_LOGGER, STATUS
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def httpx_error_to_fastapi(logger_getter: Callable[[Any], Logger]):
-    def decorator(func: Callable[Concatenate[Any, P], Coroutine[Any, Any, R]]):
-        @functools.wraps(func)
-        async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs):
-            try:
-                return await func(self, *args, **kwargs)
-            except HTTPStatusError as e:
-                res = e.response
-                logger_getter(self).error(
-                    "Dispenser error: %s",
-                    res.json().get("error"),
-                    extra={STATUS: res.status_code},
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY, detail="Dispenser error"
-                )
+def dispenser_error_to_fastapi[**P, R](
+    func: Callable[Concatenate[Any, P], Coroutine[Any, Any, R]],
+):
+    @functools.wraps(func)
+    async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs):
+        try:
+            return await func(self, *args, **kwargs)
+        except HTTPStatusError | ValidationError:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY, detail="Dispenser error"
+            )
 
-        return wrapper
-
-    return decorator
+    return wrapper
 
 
-@dataclasses.dataclass
-class AuthBundle:
-    authToken: str
-    userAgent: str
-    gsfId: str
-    dfeCookie: str
-    deviceCheckInConsistencyToken: str | None
-    deviceConfigToken: str | None
-    mccMnc: str | None
+def log_dispenser_error(func: Callable[[PlayAuthService], Coroutine[Any, Any, None]]):
+    async def wrapper(self: PlayAuthService):
+        try:
+            await func(self)
+        except HTTPStatusError as e:
+            res = e.response
+            err = res.json().get("error")
+            self.logger.error(
+                "Dispenser error: %s", err, extra={STATUS: res.status_code}
+            )
+            raise
+        except ValidationError as e:
+            self.logger.error("Dispenser error: %s", e)
+            raise
+
+    return wrapper
+
+
+class DeviceInfo(BaseModel):
+    mccMnc: str | None = Field(alias="mccMnc", default=None)
+
+
+class AuthBundle(BaseModel):
+    auth_token: str = Field(alias="authToken")
+    user_agent: str = Field(alias="userAgentString", default="")
+    gsf_id: str = Field(alias="gsfId", default="")
+    dfe_cookie: str = Field(alias="dfeCookie", default="")
+    device_consistency_token: str | None = Field(
+        alias="deviceCheckInConsistencyToken", default=None
+    )
+    device_config_token: str | None = Field(alias="deviceConfigToken", default=None)
+    device_info: DeviceInfo = Field(alias="deviceInfoProvider")
 
 
 class PlayAuthService:
@@ -69,7 +84,8 @@ class PlayAuthService:
         self.last_auth = 0
         self.auth_lock = Lock()
 
-    @logging.log_info(logging.SELF_LOGGER, "Authenticating with dispenser")
+    @logging.log_info(SELF_LOGGER, "Authenticating with dispenser")
+    @log_dispenser_error
     async def _auth_dispenser(self):
         res = await self.http.post(
             self.dispenser_url,
@@ -78,20 +94,9 @@ class PlayAuthService:
         )
         res.raise_for_status()
 
-        auth: dict[str, Any] = res.json()
-        auth_token = auth.get("authToken")
-        if not auth_token:
-            raise HTTPStatusError("No authToken", request=res.request, response=res)
-
-        self.auth_bundle = AuthBundle(
-            auth_token,
-            auth.get("userAgentString", self.device.user_agent()),
-            auth.get("gsfId", ""),
-            auth.get("dfeCookie", ""),
-            auth.get("deviceCheckInConsistencyToken"),
-            auth.get("deviceConfigToken"),
-            auth.get("deviceInfoProvider", {}).get("mccMnc"),
-        )
+        self.auth_bundle = AuthBundle.model_validate(res.json())
+        if not self.auth_bundle.user_agent:
+            self.auth_bundle.user_agent = self.device.user_agent()
 
     async def auth_dispenser(self):
         if time.time() < self.last_auth + self.refresh_cooldown:
@@ -106,17 +111,17 @@ class PlayAuthService:
 
     def headers(self, accept_language: str = "en-US"):
         optional_headers = {
-            "X-DFE-Device-Checkin-Consistency-Token": self.auth_bundle.deviceCheckInConsistencyToken,
-            "X-DFE-Device-Config-Token": self.auth_bundle.deviceConfigToken,
-            "X-DFE-MCCMNC": self.auth_bundle.mccMnc,
+            "X-DFE-Device-Checkin-Consistency-Token": self.auth_bundle.device_consistency_token,  # noqa: E501
+            "X-DFE-Device-Config-Token": self.auth_bundle.device_config_token,
+            "X-DFE-MCCMNC": self.auth_bundle.device_info.mccMnc,
         }
         return {
-            AUTHORIZATION: f"Bearer {self.auth_bundle.authToken}",
-            USER_AGENT: self.auth_bundle.userAgent,
-            "X-DFE-Device-Id": self.auth_bundle.gsfId,
+            AUTHORIZATION: f"Bearer {self.auth_bundle.auth_token}",
+            USER_AGENT: self.auth_bundle.user_agent,
+            "X-DFE-Device-Id": self.auth_bundle.gsf_id,
             ACCEPT_LANGUAGE: accept_language,
-            "X-DFE-Encoded-Targets": "CAESN/qigQYC2AMBFfUbyA7SM5Ij/CvfBoIDgxXrBPsDlQUdMfOLAfoFrwEHgAcBrQYhoA0cGt4MKK0Y2gI",
-            "X-DFE-Phenotype": "H4sIAAAAAAAAAB3OO3KjMAAA0KRNuWXukBkBQkAJ2MhgAZb5u2GCwQZbCH_EJ77QHmgvtDtbv-Z9_H63zXXU0NVPB1odlyGy7751Q3CitlPDvFd8lxhz3tpNmz7P92CFw73zdHU2Ie0Ad2kmR8lxhiErTFLt3RPGfJQHSDy7Clw10bg8kqf2owLokN4SecJTLoSwBnzQSd652_MOf2d1vKBNVedzg4ciPoLz2mQ8efGAgYeLou-l-PXn_7Sna1MfhHuySxt-4esulEDp8Sbq54CPPKjpANW-lkU2IZ0F92LBI-ukCKSptqeq1eXU96LD9nZfhKHdtjSWwJqUm_2r6pMHOxk01saVanmNopjX3YxQafC4iC6T55aRbC8nTI98AF_kItIQAJb5EQxnKTO7TZDWnr01HVPxelb9A2OWX6poidMWl16K54kcu_jhXw-JSBQkVcD_fPsLSZu6joIBAAA",
+            "X-DFE-Encoded-Targets": "CAESN/qigQYC2AMBFfUbyA7SM5Ij/CvfBoIDgxXrBPsDlQUdMfOLAfoFrwEHgAcBrQYhoA0cGt4MKK0Y2gI",  # noqa: E501
+            "X-DFE-Phenotype": "H4sIAAAAAAAAAB3OO3KjMAAA0KRNuWXukBkBQkAJ2MhgAZb5u2GCwQZbCH_EJ77QHmgvtDtbv-Z9_H63zXXU0NVPB1odlyGy7751Q3CitlPDvFd8lxhz3tpNmz7P92CFw73zdHU2Ie0Ad2kmR8lxhiErTFLt3RPGfJQHSDy7Clw10bg8kqf2owLokN4SecJTLoSwBnzQSd652_MOf2d1vKBNVedzg4ciPoLz2mQ8efGAgYeLou-l-PXn_7Sna1MfhHuySxt-4esulEDp8Sbq54CPPKjpANW-lkU2IZ0F92LBI-ukCKSptqeq1eXU96LD9nZfhKHdtjSWwJqUm_2r6pMHOxk01saVanmNopjX3YxQafC4iC6T55aRbC8nTI98AF_kItIQAJb5EQxnKTO7TZDWnr01HVPxelb9A2OWX6poidMWl16K54kcu_jhXw-JSBQkVcD_fPsLSZu6joIBAAA",  # noqa: E501
             "X-DFE-Client-Id": "am-android-google",
             "X-DFE-Network-Type": "4",
             "X-DFE-Content-Filters": "",
@@ -124,7 +129,7 @@ class PlayAuthService:
             "X-Ad-Id": "",
             "X-DFE-UserLanguages": accept_language.replace("-", "_"),
             "X-DFE-Request-Params": "timeoutMs=4000",
-            "X-DFE-Cookie": self.auth_bundle.dfeCookie,
+            "X-DFE-Cookie": self.auth_bundle.dfe_cookie,
             "X-DFE-No-Prefetch": "true",
             **{k: v for k, v in optional_headers.items() if v is not None},
         }
