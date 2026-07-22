@@ -1,7 +1,7 @@
 import functools
 import time
 from asyncio import Lock
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable
 from typing import Any, Concatenate, ParamSpec, TypeVar
 
 from fastapi import HTTPException, status
@@ -19,14 +19,14 @@ from gpdp.http.headers import (
 )
 from gpdp.util import logging
 from gpdp.util.device import DeviceProperties
-from gpdp.util.logging import SELF_LOGGER, STATUS
+from gpdp.util.logging import STATUS
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 def dispenser_error_to_fastapi[**P, R](
-    func: Callable[Concatenate[Any, P], Coroutine[Any, Any, R]],
+    func: Callable[Concatenate[Any, P], Awaitable[R]],
 ):
     @functools.wraps(func)
     async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs):
@@ -40,7 +40,7 @@ def dispenser_error_to_fastapi[**P, R](
     return wrapper
 
 
-def log_dispenser_error(func: Callable[[PlayAuthService], Coroutine[Any, Any, None]]):
+def log_dispenser_error(func: Callable[[PlayAuthService], Awaitable[None]]):
     async def wrapper(self: PlayAuthService):
         try:
             await func(self)
@@ -84,7 +84,7 @@ class PlayAuthService:
         self.last_auth = 0
         self.auth_lock = Lock()
 
-    @logging.log_info(SELF_LOGGER, "Authenticating with dispenser")
+    @logging.log_info("Authenticating with dispenser")
     @log_dispenser_error
     async def _auth_dispenser(self):
         res = await self.http.post(

@@ -2,14 +2,13 @@ import functools
 import json
 import logging
 import logging.config
-import operator
 import os
 import sys
 from collections.abc import Callable, Mapping
 from copy import copy
 from http import HTTPStatus
 from logging import Logger, LogRecord
-from typing import Any, Concatenate, Literal, ParamSpec, TypeVar, override
+from typing import Concatenate, Literal, ParamSpec, Protocol, TypeVar, override
 
 from uvicorn import _ansi
 from uvicorn.logging import AccessFormatter, ColourizedFormatter
@@ -19,9 +18,6 @@ DEFAULT_LOGGING_CONF = "logging.json"
 
 PKG = "package"
 STATUS = "status_code"
-
-
-SELF_LOGGER = operator.attrgetter("logger")
 
 
 def setup():
@@ -36,15 +32,20 @@ def get_logger(self: object):
     )
 
 
+class HasLogger(Protocol):
+    logger: Logger
+
+
 P = ParamSpec("P")
 R = TypeVar("R")
+T = TypeVar("T", bound=HasLogger)
 
 
-def log_info(logger_getter: Callable[[Any], Logger], msg: str):
-    def decorator(func: Callable[Concatenate[Any, P], R]):
+def log_info(msg: str):
+    def decorator(func: Callable[Concatenate[T, P], R]):
         @functools.wraps(func)
-        def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs):
-            logger_getter(self).info("%s", msg)
+        def wrapper(self: T, *args: P.args, **kwargs: P.kwargs):
+            self.logger.info("%s", msg)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -52,11 +53,11 @@ def log_info(logger_getter: Callable[[Any], Logger], msg: str):
     return decorator
 
 
-def package_request_info(logger_getter: Callable[[Any], Logger], msg: str):
-    def decorator(func: Callable[Concatenate[Any, str, P], R]):
+def package_request_info(msg: str):
+    def decorator(func: Callable[Concatenate[T, str, P], R]):
         @functools.wraps(func)
-        def wrapper(self: Any, pkg: str, *args: P.args, **kwargs: P.kwargs):
-            logger_getter(self).info("%s", msg, extra={PKG: pkg})
+        def wrapper(self: T, pkg: str, *args: P.args, **kwargs: P.kwargs):
+            self.logger.info("%s", msg, extra={PKG: pkg})
             return func(self, pkg, *args, **kwargs)
 
         return wrapper

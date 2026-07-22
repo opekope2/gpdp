@@ -1,8 +1,7 @@
 import datetime
 from collections import deque
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable
 from http import HTTPMethod
-from typing import Any
 
 from fastapi import HTTPException, status
 from gpapi.googleplay import CONTENT_TYPE_PROTO, DELIVERY_URL, DETAILS_URL, PURCHASE_URL
@@ -14,7 +13,7 @@ from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
 from gpdp.services import play_auth
 from gpdp.services.play_auth import PlayAuthService
 from gpdp.util import logging, xapk, zip
-from gpdp.util.logging import PKG, SELF_LOGGER, STATUS
+from gpdp.util.logging import PKG, STATUS
 from gpdp.util.zip import FileHeader
 
 
@@ -25,7 +24,7 @@ class PlayApiService:
         self.logger = logging.get_logger(self)
 
     @play_auth.dispenser_error_to_fastapi
-    async def request(self, f: Callable[[], Coroutine[Any, Any, Response]]):
+    async def request(self, f: Callable[[], Awaitable[Response]]):
         res = await f()
         if res.status_code == status.HTTP_401_UNAUTHORIZED:
             await self.auth.auth_dispenser()
@@ -36,7 +35,7 @@ class PlayApiService:
             )
         return res
 
-    @logging.package_request_info(SELF_LOGGER, "Getting details")
+    @logging.package_request_info("Getting details")
     async def app_details(self, package: str):
         headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
@@ -68,7 +67,7 @@ class PlayApiService:
 
         return app
 
-    @logging.package_request_info(SELF_LOGGER, "Purchasing")
+    @logging.package_request_info("Purchasing")
     async def purchase(self, package: str, app: DocV2):
         for offer in app.offer:
             if offer.offerType == 1 and offer.micros > 0:
@@ -99,7 +98,7 @@ class PlayApiService:
                 "Purchase failed", extra={PKG: package, STATUS: res.status_code}
             )
 
-    @logging.package_request_info(SELF_LOGGER, "Delivering")
+    @logging.package_request_info("Delivering")
     async def app_delivery(self, package: str, ver_code: int, purchased: bool = False):
         headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
@@ -138,7 +137,7 @@ class PlayApiService:
 
         return delivery
 
-    @logging.package_request_info(SELF_LOGGER, "Creating XAPK")
+    @logging.package_request_info("Creating XAPK")
     def xapk_create_entries(self, package: str, delivery: AndroidAppDeliveryData):
         now = datetime.datetime.now()
 
