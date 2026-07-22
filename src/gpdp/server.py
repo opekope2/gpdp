@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Path, Response, status
@@ -44,14 +45,19 @@ async def download_xapk(
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
     version_code: Annotated[int, Path(gt=0)],
 ):
-    delivery = await play_api.app_delivery(package_id, version_code)
+    app = await play_api.app_details(package_id)
+    delivery, icon_size = await asyncio.gather(
+        play_api.app_delivery(package_id, version_code, app),
+        play_api.icon_size(app),
+    )
     entries = play_api.xapk_create_entries(package_id, delivery)
+    entries[0].size = icon_size
 
     return StreamingResponse(
-        content=play_api.xapk_stream_download(delivery, entries),
+        content=play_api.xapk_stream_download(app, delivery, entries),
         media_type=MEDIA_TYPE_ZIP,
         headers={
             CONTENT_LENGTH: str(zip.file_size(entries)),
-            CONTENT_DISPOSITION: f'attachment; filename="{package_id}-{version_code}.xapk"',
+            CONTENT_DISPOSITION: f'attachment; filename="{package_id}-{version_code}.xapk"',  # noqa: E501
         },
     )

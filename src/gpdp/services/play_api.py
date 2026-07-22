@@ -9,12 +9,19 @@ from gpapi.googleplay_pb2 import AndroidAppDeliveryData, DocV2, ResponseWrapper
 from httpx import AsyncClient, Response
 
 from gpdp.http.content_types import CONTENT_TYPE_X_WWW_FORM_URLENCODED
-from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
+from gpdp.http.headers import ACCEPT, CONTENT_LENGTH, CONTENT_TYPE, COOKIE
 from gpdp.services import play_auth
 from gpdp.services.play_auth import PlayAuthService
 from gpdp.util import logging, xapk, zip
 from gpdp.util.logging import PKG, STATUS
 from gpdp.util.zip import FileHeader
+
+IMAGE_TYPE_ICON = 4
+ICON_NAME = "icon.png"
+
+
+def icon(app: DocV2):
+    return next(img for img in app.image if img.imageType == IMAGE_TYPE_ICON)
 
 
 class PlayApiService:
@@ -99,7 +106,9 @@ class PlayApiService:
             )
 
     @logging.package_request_info("Delivering")
-    async def app_delivery(self, package: str, ver_code: int, purchased: bool = False):
+    async def app_delivery(
+        self, package: str, ver_code: int, app: DocV2, purchased: bool = False
+    ):
         headers = self.auth.headers() | {
             ACCEPT: CONTENT_TYPE_PROTO,
             CONTENT_TYPE: CONTENT_TYPE_PROTO,
@@ -123,9 +132,8 @@ class PlayApiService:
 
         if not delivery.downloadUrl:
             if not purchased:
-                app = await self.app_details(package)
                 await self.purchase(package, app)
-                return await self.app_delivery(package, ver_code, purchased=True)
+                return await self.app_delivery(package, ver_code, app, purchased=True)
 
             self.logger.error(
                 "Download not available",
@@ -137,10 +145,24 @@ class PlayApiService:
 
         return delivery
 
+    async def icon_size(self, app: DocV2):
+        # TODO headers
+        res = await self.request(lambda: self.http.head(icon(app).imageUrl))
+        if res.is_error:
+            self.logger.error(
+                "Icon download failed", extra={PKG: app.docid, STATUS: res.status_code}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY, detail="Icon download failed"
+            )
+
+        return int(res.headers.get(CONTENT_LENGTH))
+
     @logging.package_request_info("Creating XAPK")
     def xapk_create_entries(self, package: str, delivery: AndroidAppDeliveryData):
         now = datetime.datetime.now()
 
+        icon_entry = FileHeader(now, 0, ICON_NAME, b"", "")  # Size filled in later
         base_apk = FileHeader(now, delivery.downloadSize, xapk.BASE_NAME, b"", "")
         split_entries = [
             FileHeader(now, s.size, xapk.split_name(s), b"", "") for s in delivery.split
@@ -150,8 +172,8 @@ class PlayApiService:
             for f in delivery.additionalFile
         ]
 
-        # TODO icon, manifest
-        return [base_apk, *split_entries, *additional_entries]
+        # TODO manifest
+        return [icon_entry, base_apk, *split_entries, *additional_entries]
 
     # TODO gzip
     async def stream_file(
@@ -168,16 +190,18 @@ class PlayApiService:
         yield entry.data_descriptor()
 
     async def xapk_stream_download(
-        self, delivery: AndroidAppDeliveryData, entries: list[zip.FileHeader]
+        self,
+        app: DocV2,
+        delivery: AndroidAppDeliveryData,
+        entries: list[zip.FileHeader],
     ):
         cookie = "; ".join(f"{c.name}={c.value}" for c in delivery.downloadAuthCookie)
-        headers = self.auth.headers() | {
-            ACCEPT: CONTENT_TYPE_PROTO,
-            CONTENT_TYPE: CONTENT_TYPE_PROTO,
-            COOKIE: cookie,
-        }
+        headers = {COOKIE: cookie} if cookie else {}
 
         e = deque(entries)
+
+        async for chunk in self.stream_file(e.popleft(), icon(app).imageUrl, headers):
+            yield chunk
 
         async for chunk in self.stream_file(e.popleft(), delivery.downloadUrl, headers):
             yield chunk
@@ -192,7 +216,7 @@ class PlayApiService:
             async for chunk in self.stream_file(e.popleft(), f.downloadUrl, headers):
                 yield chunk
 
-        # TODO icon, manifest
+        # TODO manifest
 
         for e in entries:
             yield e.central_directory_header(entries)
