@@ -10,6 +10,7 @@
     </hgroup>
 
     <table>
+        {% if details.versionCode != 0 %}
         <tr>
             <td>Version</td>
             <td><span class="version">{{ details.versionString }}</span></td>
@@ -18,6 +19,7 @@
             <td>Updated on</td>
             <td><span class="upload_date">{{ details.uploadDate }}</span></td>
         </tr>
+        {% endif %}
         <tr>
             <td>Application ID</td>
             <td><span class="package_id">{{ package }}</span></td>
@@ -25,8 +27,13 @@
     </table>
 
     <div class="actions">
+        {% if details.versionCode != 0 %}
         <a href="obtainium://app/{{ obtainium_config }}" role="button">Add to Obtainium</a>
         <a href="{{ package }}/{{ version_code }}.xapk" role="button" class="outline">Download XAPK</a>
+        {% else %}
+        <button disabled>Add to Obtainium</button>
+        <button class="outline" disabled>Download not available</button>
+        {% endif %}
     </div>
 </main>
 

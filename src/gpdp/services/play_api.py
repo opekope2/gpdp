@@ -62,8 +62,7 @@ class PlayApiService:
         response.ParseFromString(res.content)
 
         app = response.payload.detailsResponse.docV2
-        details = app.details.appDetails
-        if not app.docid or details.versionCode == 0:
+        if not app.docid:
             self.logger.error(
                 "Not available", extra={PKG: package, STATUS: res.status_code}
             )
