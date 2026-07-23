@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, Path, Response, status
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 import gpdp.dependency_injection as deps
-from gpdp.http.headers import CONTENT_DISPOSITION, CONTENT_LENGTH
+from gpdp.http.headers import CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
 from gpdp.services.play_api import PlayApiService
 from gpdp.util import xapk, zip
 from gpdp.util.zip import FileHeader
@@ -76,5 +76,6 @@ async def download_xapk(
         headers={
             CONTENT_LENGTH: str(zip.file_size(entries)),
             CONTENT_DISPOSITION: f'attachment; filename="{package_id}-{version_code}.xapk"',  # noqa: E501
+            ETAG: f'"{version_code}"',
         },
     )
