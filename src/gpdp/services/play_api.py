@@ -9,7 +9,7 @@ from gpapi.googleplay_pb2 import AndroidAppDeliveryData, DocV2, ResponseWrapper
 from httpx import AsyncClient, Response
 
 from gpdp.http.content_types import CONTENT_TYPE_X_WWW_FORM_URLENCODED
-from gpdp.http.headers import ACCEPT, CONTENT_LENGTH, CONTENT_TYPE, COOKIE
+from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
 from gpdp.services import play_auth
 from gpdp.services.play_auth import PlayAuthService
 from gpdp.util import logging, xapk, zip
@@ -17,7 +17,6 @@ from gpdp.util.logging import PKG, STATUS
 from gpdp.util.zip import FileHeader
 
 IMAGE_TYPE_ICON = 4
-ICON_NAME = "icon.png"
 
 
 def icon(app: DocV2):
@@ -145,35 +144,31 @@ class PlayApiService:
 
         return delivery
 
-    async def icon_size(self, app: DocV2):
+    async def download_icon(self, app: DocV2):
         # TODO headers
-        res = await self.request(lambda: self.http.head(icon(app).imageUrl))
+        res = await self.request(lambda: self.http.get(icon(app).imageUrl))
         if res.is_error:
-            self.logger.error(
+            self.logger.warning(
                 "Icon download failed", extra={PKG: app.docid, STATUS: res.status_code}
             )
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY, detail="Icon download failed"
-            )
+            return
 
-        return int(res.headers.get(CONTENT_LENGTH))
+        return res.content
 
     @logging.package_request_info("Creating XAPK")
-    def xapk_create_entries(self, package: str, delivery: AndroidAppDeliveryData):
-        now = datetime.datetime.now()
-
-        icon_entry = FileHeader(now, 0, ICON_NAME, b"", "")  # Size filled in later
+    def xapk_create_entries(
+        self, package: str, delivery: AndroidAppDeliveryData, now: datetime.datetime
+    ):
         base_apk = FileHeader(now, delivery.downloadSize, xapk.BASE_NAME, b"", "")
         split_entries = [
             FileHeader(now, s.size, xapk.split_name(s), b"", "") for s in delivery.split
         ]
         additional_entries = [
-            FileHeader(now, f.size, xapk.OBB_PATH + xapk.obb_name(package, f), b"", "")
+            FileHeader(now, f.size, xapk.obb_path(package, f), b"", "")
             for f in delivery.additionalFile
         ]
 
-        # TODO manifest
-        return [icon_entry, base_apk, *split_entries, *additional_entries]
+        return [base_apk, *split_entries, *additional_entries]
 
     # TODO gzip
     async def stream_file(
@@ -182,7 +177,7 @@ class PlayApiService:
         yield entry.local_header()
 
         async with self.http.stream(HTTPMethod.GET, url, headers=headers) as res:
-            res.raise_for_status()  # TODO
+            res.raise_for_status()  # Response has already started so it won't reach the client  # noqa: E501
             async for chunk in res.aiter_bytes():
                 entry.update_crc32(chunk)
                 yield chunk
@@ -194,29 +189,31 @@ class PlayApiService:
         app: DocV2,
         delivery: AndroidAppDeliveryData,
         entries: list[zip.FileHeader],
+        extra_files: list[bytes],
     ):
         cookie = "; ".join(f"{c.name}={c.value}" for c in delivery.downloadAuthCookie)
         headers = {COOKIE: cookie} if cookie else {}
 
         e = deque(entries)
 
-        async for chunk in self.stream_file(e.popleft(), icon(app).imageUrl, headers):
-            yield chunk
-
         async for chunk in self.stream_file(e.popleft(), delivery.downloadUrl, headers):
             yield chunk
 
         for s in delivery.split:
-            # TODO check download
             async for chunk in self.stream_file(e.popleft(), s.downloadUrl, headers):
                 yield chunk
 
         for f in delivery.additionalFile:
-            # TODO check download
             async for chunk in self.stream_file(e.popleft(), f.downloadUrl, headers):
                 yield chunk
 
-        # TODO manifest
+        for f in extra_files:
+            entry = e.popleft()
+
+            yield entry.local_header()
+            entry.update_crc32(f)
+            yield f
+            yield entry.data_descriptor()
 
         for e in entries:
             yield e.central_directory_header(entries)
