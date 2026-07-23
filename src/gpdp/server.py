@@ -49,9 +49,9 @@ def favicon():
 
 @app.get("/{package_id}")
 async def app_info(
+    req: Request,
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
-    req: Request,
 ):
     app = await play_api.app_details(package_id)
     details = app.details.appDetails
@@ -102,7 +102,7 @@ async def download_xapk(
     extra_files.append(manifest)
 
     return StreamingResponse(
-        content=play_api.xapk_stream_download(app, delivery, entries, extra_files),
+        content=play_api.xapk_stream_download(delivery, entries, extra_files),
         media_type=MEDIA_TYPE_ZIP,
         headers={
             CONTENT_LENGTH: str(zip.file_size(entries)),

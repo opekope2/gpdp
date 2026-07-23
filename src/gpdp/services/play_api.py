@@ -186,7 +186,6 @@ class PlayApiService:
 
     async def xapk_stream_download(
         self,
-        app: DocV2,
         delivery: AndroidAppDeliveryData,
         entries: list[zip.FileHeader],
         extra_files: list[bytes],
