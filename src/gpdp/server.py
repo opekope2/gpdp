@@ -63,7 +63,7 @@ async def download_xapk(
 
     manifest = (
         xapk.create_manifest(app, delivery, icon is not None)
-        .model_dump_json(exclude_none=True)
+        .model_dump_json(exclude_defaults=True)
         .encode()
     )
     manifest_entry = FileHeader(now, len(manifest), xapk.MANIFEST_NAME, b"", "")

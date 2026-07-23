@@ -1,13 +1,17 @@
+from typing import Annotated
+
 from gpapi.googleplay_pb2 import AndroidAppDeliveryData, AppFileMetadata, DocV2
 from gpapi.googleplay_pb2 import Split as SplitAPK
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, PlainSerializer
 
 BASE_ID = "base"
 BASE_NAME = f"{BASE_ID}.apk"
 ICON_NAME = "icon.png"
+ICON_NONE = ""
 MANIFEST_NAME = "manifest.json"
 OBB_TYPE = ["main", "patch"]
 OBB_PATH = "Android/obb"
+XAPK_VERSION_2 = 2
 INSTALL_LOCATION_EXTERNAL_STORAGE = "EXTERNAL_STORAGE"
 
 
@@ -29,12 +33,11 @@ def create_manifest(app: DocV2, delivery: AndroidAppDeliveryData, has_icon: bool
     splits = [Split(file=split_name(s), id=s.name) for s in delivery.split]
 
     return Manifest(
-        xapk_version=2,
         name=app.title,
         package_name=package,
-        version_code=str(details.versionCode),
+        version_code=details.versionCode,
         version_name=details.versionString,
-        icon=ICON_NAME if has_icon else None,
+        icon=ICON_NAME if has_icon else ICON_NONE,
         total_size=details.installationSize,
         # min_sdk_version="",  # TODO
         # max_sdk_version="",  # TODO
@@ -53,6 +56,9 @@ def create_manifest(app: DocV2, delivery: AndroidAppDeliveryData, has_icon: bool
     )
 
 
+STRING_SERIALIZER = PlainSerializer(str, return_type=str)
+
+
 class Expansion(BaseModel):
     file: str
     install_location: str
@@ -64,18 +70,23 @@ class Split(BaseModel):
     id: str
 
 
+# Extracting SDK versions require
+# 1. Intercepting the download of base.apk
+# 2. Finding the local header for AndroidManifest.xml
+# 3. Reading, decompressing, and decoding AndroidManifest.xml
+# 4. Padding the manifest bytes for small or missing numbers
 class Manifest(BaseModel):
-    xapk_version: int
+    xapk_version: int = Field(default=XAPK_VERSION_2)
     name: str
     package_name: str
-    version_code: str
+    version_code: Annotated[int, STRING_SERIALIZER]
     version_name: str
-    icon: str | None
+    icon: str = Field(default=ICON_NONE)
     total_size: int
-    # min_sdk_version: str  # TODO
-    # max_sdk_version: str  # TODO
-    # target_sdk_version: str  # TODO
-    permissions: list[str]
-    split_configs: list[str]
-    split_apks: list[Split]
-    expansions: list[Expansion]
+    # min_sdk_version: Annotated[int, STRING_SERIALIZER]  # TODO
+    # max_sdk_version: Annotated[int, STRING_SERIALIZER]  # TODO
+    # target_sdk_version: Annotated[int, STRING_SERIALIZER]  # TODO
+    permissions: list[str] = Field(default_factory=list)
+    split_configs: list[str] = Field(default_factory=list)
+    split_apks: list[Split] = Field(default_factory=list)
+    expansions: list[Expansion] = Field(default_factory=list)
