@@ -32,7 +32,7 @@ def dispenser_error_to_fastapi[**P, R](
     async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs):
         try:
             return await func(self, *args, **kwargs)
-        except HTTPStatusError | ValidationError:
+        except HTTPStatusError, ValidationError:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY, detail="Dispenser error"
             )
