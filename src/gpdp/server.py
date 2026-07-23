@@ -4,8 +4,8 @@ import pathlib
 import urllib.parse
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Path, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi import Depends, FastAPI, Form, Path, Request, Response, status
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -23,6 +23,23 @@ dir = pathlib.Path(__file__).parent
 app = FastAPI(lifespan=deps.inject)
 app.mount("/assets", StaticFiles(directory=dir / "assets"), name="assets")
 templates = Jinja2Templates(directory=dir / "templates")
+
+
+@app.get("/")
+def index(req: Request):
+    return templates.TemplateResponse(
+        req,
+        "index.html",
+        {
+            "title": "GPDP",
+            "package_id_pattern": PACKAGE_ID_PATTERN,
+        },
+    )
+
+
+@app.post("/")
+def show_details(package_id: Annotated[str, Form(pattern=PACKAGE_ID_PATTERN)]):
+    return RedirectResponse(url=f"/{package_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/favicon.ico")

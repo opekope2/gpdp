@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<main class="container">
+    <hgroup>
+        <h1>GPDP</h1>
+        <span>Google Play Download Proxy</span>
+    </hgroup>
+
+    <form method="post">
+        <label>
+            Enter application ID to see details
+            <input type="text" name="package_id" placeholder="Application ID" pattern="{{ package_id_pattern }}"
+                required />
+        </label>
+
+        <input type="submit" />
+    </form>
+</main>
+
+{% endblock %}
