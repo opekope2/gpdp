@@ -1,21 +1,28 @@
 import asyncio
 import datetime
+import pathlib
+import urllib.parse
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Path, Response, status
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import Depends, FastAPI, Path, Request, Response, status
+from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 import gpdp.dependency_injection as deps
 from gpdp.http.headers import CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
-from gpdp.services.play_api import PlayApiService
-from gpdp.util import xapk, zip
+from gpdp.services.play_api import PlayApiService, icon
+from gpdp.util import obtainium, xapk, zip
 from gpdp.util.zip import FileHeader
 
 MEDIA_TYPE_ZIP = "application/zip"
 PACKAGE_ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
 
 
+dir = pathlib.Path(__file__).parent
 app = FastAPI(lifespan=deps.inject)
+app.mount("/assets", StaticFiles(directory=dir / "assets"), name="assets")
+templates = Jinja2Templates(directory=dir / "templates")
 
 
 @app.get("/favicon.ico")
@@ -27,17 +34,23 @@ def favicon():
 async def app_info(
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
+    req: Request,
 ):
     app = await play_api.app_details(package_id)
+    details = app.details.appDetails
+    obtainium_app = obtainium.create_app(str(req.url), app)
 
-    version = app.details.appDetails.versionString
-    version_code = app.details.appDetails.versionCode
-
-    return HTMLResponse(
-        content=f"""
-            <span class="version">{version}</span><br>
-            <a href="{app.docid}/{version_code}.xapk">Download XAPK</a>
-        """
+    return templates.TemplateResponse(
+        req,
+        "app_info.html",
+        {
+            "app": app,
+            "details": details,
+            "package": package_id,
+            "version_code": details.versionCode,
+            "icon_url": icon(app).imageUrl,
+            "obtainium_config": urllib.parse.quote(obtainium_app.model_dump_json()),
+        },
     )
 
 

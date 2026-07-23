@@ -1,0 +1,12 @@
+hgroup,
+h1,
+.actions {
+    text-align: center;
+}
+
+.icon {
+    --h1-font-size: 2rem;
+    width: calc(2 * var(--h1-font-size));
+    height: auto;
+    border-radius: calc(0.5 * var(--h1-font-size));
+}
