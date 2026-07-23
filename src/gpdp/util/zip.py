@@ -7,6 +7,7 @@ import zlib
 from collections.abc import Buffer
 
 LOCAL_FILE_HEADER_SIGNATURE = 0x04034B50
+DATA_DESCRIPTOR_SIGNATURE = 0x08074B50
 CENTRAL_FILE_HEADER_SIGNATURE = 0x02014B50
 END_OF_CENTRAL_DIR_SIGNATURE = 0x06054B50
 ZIP_VERSION_2 = 20
@@ -77,10 +78,12 @@ class FileHeader:
         self.crc32 = zlib.crc32(chunk, self.crc32)
 
     def data_descriptor(self):
-        return struct.pack("<III", self.crc32, self.size, self.size)
+        return struct.pack(
+            "<IIII", DATA_DESCRIPTOR_SIGNATURE, self.crc32, self.size, self.size
+        )
 
     def file_header_data_descriptor_size(self):
-        return self.local_header_size() + self.size + 12
+        return self.local_header_size() + self.size + 16
 
     def central_directory_header(self, entries: list[FileHeader]):
         file_name_bytes = self.file_name.encode()
