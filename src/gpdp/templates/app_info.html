@@ -1,44 +1,33 @@
-<!doctype html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{% block body %}
 
-    <link rel="stylesheet" href="assets/css/app.css" />
-    <link rel="stylesheet" href="assets/css/pico.violet.min.css" />
+<main class="container">
+    <hgroup>
+        <img src="{{ icon_url }}" alt="{{ app.title }} icon" class="icon" />
+        <h1>{{ app.title }}</h1>
+        <span class="developer">{{ details.developerName }}</span>
+    </hgroup>
 
-    <title>{{ app.title }}</title>
-</head>
+    <table>
+        <tr>
+            <td>Version</td>
+            <td><span class="version">{{ details.versionString }}</span></td>
+        </tr>
+        <tr>
+            <td>Updated on</td>
+            <td><span class="upload_date">{{ details.uploadDate }}</span></td>
+        </tr>
+        <tr>
+            <td>Application ID</td>
+            <td><span class="package_id">{{ package }}</span></td>
+        </tr>
+    </table>
 
-<body>
-    <main class="container">
-        <hgroup>
-            <img src="{{ icon_url }}" alt="{{ app.title }} icon" class="icon" />
-            <h1>{{ app.title }}</h1>
-            <span class="developer">{{ details.developerName }}</span>
-        </hgroup>
+    <div class="actions">
+        <a href="obtainium://app/{{ obtainium_config }}" role="button">Add to Obtainium</a>
+        <a href="{{ package }}/{{ version_code }}.xapk" role="button" class="outline">Download XAPK</a>
+    </div>
+</main>
 
-        <table>
-            <tr>
-                <td>Version</td>
-                <td><span class="version">{{ details.versionString }}</span></td>
-            </tr>
-            <tr>
-                <td>Updated on</td>
-                <td><span class="upload_date">{{ details.uploadDate }}</span></td>
-            </tr>
-            <tr>
-                <td>Application ID</td>
-                <td><span class="package_id">{{ package }}</span></td>
-            </tr>
-        </table>
-
-        <div class="actions">
-            <a href="obtainium://app/{{ obtainium_config }}" role="button">Add to Obtainium</a>
-            <a href="{{ package }}/{{ version_code }}.xapk" role="button" class="outline">Download XAPK</a>
-        </div>
-    </main>
-</body>
-
-</html>
+{% endblock %}

@@ -44,6 +44,7 @@ async def app_info(
         req,
         "app_info.html",
         {
+            "title": app.title,
             "app": app,
             "details": details,
             "package": package_id,
