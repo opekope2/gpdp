@@ -28,10 +28,11 @@ Repository = "https://github.com/opekope2/GPDP"
 
 [project.optional-dependencies]
 dev = [
+  "build",
+  "grpcio-tools",
   "pyrefly",
   "ruff",
   "types-protobuf",
-  "grpcio-tools",
 ]
 
 [build-system]

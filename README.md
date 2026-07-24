@@ -13,6 +13,10 @@ GPDP will get a token from the configured dispenser on startup.
 To reduce the number of requests towards the dispenser, run a cached dispenser and set it in `config.json`: `scripts/cached_dispenser.py [DISPENSER_URL] [DEVICE_PROPERTIES]`.
 Optionally specify the `HOST` and/or `PORT` environment variables.
 
+## Building
+
+Run `python -m build`
+
 ## Running
 
 Run `uvicorn gpdp.server:app`
