@@ -1,4 +1,4 @@
-FROM python:slim AS builder
+FROM python:alpine AS builder
 
 WORKDIR /build
 
@@ -8,7 +8,7 @@ ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=igno
 
 RUN pip install build grpcio-tools && python scripts/generate_protos.py && python -m build --wheel
 
-FROM python:slim
+FROM python:alpine
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY --from=builder /build/dist/*.whl /tmp/
 
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=ignore
 
-RUN pip install /tmp/*.whl && rm -rf /tmp/*.whl && useradd -s /sbin/nologin gpdp
+RUN pip install /tmp/*.whl && rm -rf /tmp/*.whl && adduser -s /sbin/nologin -D gpdp
 
 USER gpdp
 
