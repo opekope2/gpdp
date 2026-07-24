@@ -51,6 +51,10 @@ The API endpoint of the token dispenser. **Do not use `auroraoss.com`** as it's 
 
 GPDP will try to refresh the token using the token dispenser if Google Play returns `401 Unauthorized`. GPDP will not try to refresh the token within this many seconds of the previous attempt (in case it fails).
 
+#### `obtainium.auto_add`
+
+If set to true, GPDP will try to automatically add the apps to Obtainium if viewed from a browser (no JavaScript).
+
 ## Acknowledgements
 
 This project was heavily inspired by [gplay-apk-downloader](https://github.com/alltechdev/gplay-apk-downloader)
