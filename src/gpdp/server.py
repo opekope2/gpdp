@@ -4,13 +4,24 @@ import pathlib
 import urllib.parse
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Form, Path, Request, Response, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Form,
+    HTTPException,
+    Path,
+    Request,
+    Response,
+    exception_handlers,
+    status,
+)
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import gpdp.dependency_injection as deps
-from gpdp.http.headers import CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
+from gpdp.http.content_types import CONTENT_TYPE_HTML
+from gpdp.http.headers import ACCEPT, CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
 from gpdp.services.play_api import PlayApiService, icon
 from gpdp.util import obtainium, xapk, zip
 from gpdp.util.zip import FileHeader
@@ -23,6 +34,22 @@ dir = pathlib.Path(__file__).parent
 app = FastAPI(lifespan=deps.inject)
 app.mount("/assets", StaticFiles(directory=dir / "assets"), name="assets")
 templates = Jinja2Templates(directory=dir / "templates")
+
+
+@app.exception_handler(HTTPException)
+async def handle_error(req: Request, e: HTTPException):
+    accept = req.headers.get(ACCEPT, "")
+    if CONTENT_TYPE_HTML not in accept:
+        return await exception_handlers.http_exception_handler(req, e)
+
+    return templates.TemplateResponse(
+        req,
+        "error.html",
+        {
+            "title": f"Error {e.status_code}",
+            "error": e,
+        },
+    )
 
 
 @app.get("/")

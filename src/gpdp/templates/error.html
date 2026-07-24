@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<main class="container">
+    <hgroup>
+        <h1>Error {{ error.status_code }}</h1>
+        <span class="message">{{ error.detail }}</span>
+    </hgroup>
+</main>
+
+{% endblock %}
