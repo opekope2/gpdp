@@ -4,6 +4,7 @@ import pathlib
 import urllib.parse
 from typing import Annotated
 
+import bleach
 from fastapi import (
     Depends,
     FastAPI,
@@ -20,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
 import gpdp.dependency_injection as deps
+from gpdp.config import Config
 from gpdp.http.content_types import CONTENT_TYPE_HTML
 from gpdp.http.headers import ACCEPT, CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
 from gpdp.services.play_api import PlayApiService, icon
@@ -115,15 +117,28 @@ async def download_xapk(
     )
 
 
+ALLOWED_TAGS = ["b", "i", "u", "font", "br"]
+ALLOWED_ATTRS = ["color"]
+
+
 @app.get("/{package_id}")
 async def app_info(
     req: Request,
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
+    config: Annotated[Config, Depends(deps.config)],
 ):
     app = await play_api.app_details(package_id)
     details = app.details.appDetails
     obtainium_app = obtainium.create_app(str(req.url), app)
+
+    about = bleach.clean(app.descriptionHtml, ALLOWED_TAGS, ALLOWED_ATTRS, strip=True)
+    about = bleach.linkify(about)
+
+    changes = bleach.clean(
+        details.recentChangesHtml, ALLOWED_TAGS, ALLOWED_ATTRS, strip=True
+    )
+    changes = bleach.linkify(changes)
 
     return templates.TemplateResponse(
         req,
@@ -132,9 +147,12 @@ async def app_info(
             "title": app.title,
             "app": app,
             "details": details,
+            "config": config,
             "package": package_id,
             "version_code": details.versionCode,
             "icon_url": icon(app).imageUrl,
             "obtainium_config": urllib.parse.quote(obtainium_app.model_dump_json()),
+            "about": about,
+            "changes": changes,
         },
     )

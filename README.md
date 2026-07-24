@@ -7,10 +7,10 @@
 3. Install the project using `pip install -e ".[dev]"`
 4. Run `scripts/generate_protos.py` to generate the needed Protobuf files
 
-## Development
+## Dispenser cache
 
 GPDP will get a token from the configured dispenser on startup.
-To reduce the number of requests towards the dispenser, run a cached dispenser and set it in `config.json`: `scripts/cached_dispenser.py [DISPENSER_URL] [DEVICE_PROPERTIES]`.
+To reduce the number of requests towards the dispenser, and consequently, Google, especially when auto reload is enabled, run a cached dispenser and set it in `config.properties`: `scripts/cached_dispenser.py [DISPENSER_URL] [DEVICE_PROPERTIES]`. This will query the dispenser located at `[DISPENSER_URL]` at startup, and serve its response until it is stopped.
 Optionally specify the `HOST` and/or `PORT` environment variables.
 
 ## Building
@@ -19,7 +19,9 @@ Run `python -m build`
 
 ## Running
 
-Run `uvicorn gpdp.server:app`
+Set up and run an [Aurora Dispenser](https://gitlab.com/AuroraOSS/aurora-dispenser). Set its url in `gpdp.properties`
+
+Run `uvicorn gpdp.server:app`. See [Uvicorn settings](https://uvicorn.dev/settings/) for more options.
 
 ### Environment variables
 

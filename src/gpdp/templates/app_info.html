@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 
+{% block head %}
+
+<link rel="icon" href="{{ icon_url }}" />
+
+{% if config.add_to_obtainium and details.versionCode != 0 %}
+<meta http-equiv="refresh" content="0; url=obtainium://app/{{ obtainium_config }}">
+{% endif %}
+
+{% endblock %}
+
 {% block body %}
 
 <main class="container">
@@ -26,15 +36,34 @@
         </tr>
     </table>
 
-    <div class="actions">
+    <div class="actions" role="group">
         {% if details.versionCode != 0 %}
         <a href="obtainium://app/{{ obtainium_config }}" role="button">Add to Obtainium</a>
         <a href="{{ package }}-{{ version_code }}.xapk" role="button" class="outline">Download XAPK</a>
         {% else %}
-        <button disabled>Add to Obtainium</button>
         <button class="outline" disabled>Download not available</button>
         {% endif %}
     </div>
+
+    {% if changes %}
+    <hgroup class="top-spacing">
+        <h4>What's new</h2>
+    </hgroup>
+
+    <div class="changelog">
+        {{ changes | safe }}
+    </div>
+    {% endif %}
+
+    {% if about %}
+    <hgroup class="top-spacing">
+        <h4>About this app</h2>
+    </hgroup>
+
+    <div class="about">
+        {{ about | safe }}
+    </div>
+    {% endif %}
 </main>
 
 {% endblock %}
