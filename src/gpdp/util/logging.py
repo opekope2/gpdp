@@ -39,11 +39,11 @@ class HasLogger(Protocol):
 
 P = ParamSpec("P")
 R = TypeVar("R")
-T = TypeVar("T", bound=HasLogger)
+T = TypeVar("T")
 
 
 def log_info(msg: str):
-    def decorator(func: Callable[Concatenate[T, P], R]):
+    def decorator[T: HasLogger, **P, R](func: Callable[Concatenate[T, P], R]):
         @functools.wraps(func)
         def wrapper(self: T, *args: P.args, **kwargs: P.kwargs):
             self.logger.info("%s", msg)
@@ -55,7 +55,7 @@ def log_info(msg: str):
 
 
 def package_request_info(msg: str):
-    def decorator(func: Callable[Concatenate[T, str, P], R]):
+    def decorator[T: HasLogger, **P, R](func: Callable[Concatenate[T, str, P], R]):
         @functools.wraps(func)
         def wrapper(self: T, pkg: str, *args: P.args, **kwargs: P.kwargs):
             self.logger.info("%s", msg, extra={PKG: pkg})

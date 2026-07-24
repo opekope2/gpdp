@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import TypeVar
 
 from jproperties import Properties
 from pydantic import BaseModel, Field
@@ -6,11 +7,15 @@ from pydantic import BaseModel, Field
 ENV_CONF = "GPDP_CONF"
 DEFAULT_CONF = "gpdp.properties"
 
+T = TypeVar("T")
 
-def load(file: str):
+
+def load[T: BaseModel](file: str, config_class: type[T]):
     props = Properties()
     props.load(Path(file).read_text())
-    return Config.model_validate({key: value.data for key, value in props.items()})
+    return config_class.model_validate(
+        {key: value.data for key, value in props.items()}
+    )
 
 
 class Config(BaseModel):

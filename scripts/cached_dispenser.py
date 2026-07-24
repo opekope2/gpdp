@@ -6,9 +6,10 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from httpx import Client, codes
 
+from gpdp import config
 from gpdp.http.content_types import CONTENT_TYPE_JSON
 from gpdp.http.headers import ACCEPT, CONTENT_LENGTH, CONTENT_TYPE
-from gpdp.util import device
+from gpdp.util.device import DeviceProperties
 
 
 def create_handler(auth_bundle: bytes):
@@ -37,7 +38,7 @@ def main(args: list[str]):
     device_properties = args[2]
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "3000"))
-    dev = device.load(device_properties)
+    dev = config.load(device_properties, DeviceProperties)
 
     with Client() as http:
         print("Getting auth bundle from dispenser")

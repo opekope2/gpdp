@@ -1,6 +1,3 @@
-from pathlib import Path
-
-from jproperties import Properties
 from pydantic import BaseModel, Field
 
 ENV_DEVICE_CONF = "GPDP_DEVICE_CONF"
@@ -55,11 +52,3 @@ class DeviceProperties(BaseModel):
             f"supportedAbis={self.platforms}"
             f")"
         )
-
-
-def load(file: str):
-    props = Properties()
-    props.load(Path(file).read_text())
-    return DeviceProperties.model_validate(
-        {key: value.data for key, value in props.items()}
-    )

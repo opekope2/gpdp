@@ -5,18 +5,18 @@ from fastapi import FastAPI, Request
 from httpx import AsyncClient
 
 from gpdp import config
-from gpdp.config import DEFAULT_CONF, ENV_CONF
+from gpdp.config import DEFAULT_CONF, ENV_CONF, Config
 from gpdp.services.play_api import PlayApiService
 from gpdp.services.play_auth import PlayAuthService
-from gpdp.util import device, logging
-from gpdp.util.device import DEFAULT_DEVICE_CONF, ENV_DEVICE_CONF
+from gpdp.util import logging
+from gpdp.util.device import DEFAULT_DEVICE_CONF, ENV_DEVICE_CONF, DeviceProperties
 
 
 @asynccontextmanager
 async def inject(app: FastAPI):
     logging.setup()
-    conf = config.load(os.getenv(ENV_CONF, DEFAULT_CONF))
-    dev = device.load(os.getenv(ENV_DEVICE_CONF, DEFAULT_DEVICE_CONF))
+    conf = config.load(os.getenv(ENV_CONF, DEFAULT_CONF), Config)
+    dev = config.load(os.getenv(ENV_DEVICE_CONF, DEFAULT_DEVICE_CONF), DeviceProperties)
 
     async with AsyncClient(follow_redirects=True) as client:
         app.state.http_client = client
