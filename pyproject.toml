@@ -73,3 +73,6 @@ version.attr = "gpdp.__version__"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+gpdp = ["templates/*", "assets/**/*"]

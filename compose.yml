@@ -1,0 +1,12 @@
+services:
+  gpdp:
+    build: .
+    image: gpdp:latest
+    container_name: gpdp
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    volumes:
+      - ./gpdp.properties:/app/gpdp.properties
+      - ./device.properties:/app/device.properties
+      # - ./logging.json:/app/logging.json
