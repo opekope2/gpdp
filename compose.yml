@@ -1,0 +1,10 @@
+services:
+  gpdp:
+    build: .
+    image: gpdp:latest
+    container_name: gpdp
+    # restart: unless-stopped
+    volumes:
+      - ./gpdp.properties:/app/gpdp.properties
+      - ./device.properties:/app/device.properties
+      - ./logging.json:/app/logging.json
