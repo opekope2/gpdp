@@ -23,12 +23,31 @@ Run `uvicorn gpdp.server:app`
 
 ### Environment variables
 
+#### `GPDP_CONF`
+
+Path to GPDP configuration.
+Defaults to `gpdp.properties`
+
+#### `GPDP_DEVICE_CONF`
+
+Path to the device configuration. Export your device configuration using [Aurora Store](https://gitlab.com/AuroraOSS/AuroraStore)'s Spoof Manager or get one from [Aurora Config Generator](https://auroraoss.com/config-generator).
+Defaults to `device.properties`
+
 #### `GPDP_LOGGING_CONF`
 
-Path to `logging.json`.
+Path to GPDP logging configuration.
 See [Logging configuration](https://docs.python.org/3/library/logging.config.html#logging-config-dictschema).
-
 Defaults to `logging.json`
+
+### GPDP configuration (`gpdp.properties`)
+
+#### `dispenser.url`
+
+The API endpoint of the token dispenser. **Do not use `auroraoss.com`** as it's reserved for Aurora Store users, and you'll probably get blocked by Cloudflare anyway. Self-host your own.
+
+#### `dispenser.refresh_cooldown`
+
+GPDP will try to refresh the token using the token dispenser if Google Play returns `401 Unauthorized`. GPDP will not try to refresh the token within this many seconds of the previous attempt (in case it fails).
 
 ## Acknowledgements
 
