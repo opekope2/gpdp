@@ -29,3 +29,11 @@ Path to `logging.json`.
 See [Logging configuration](https://docs.python.org/3/library/logging.config.html#logging-config-dictschema).
 
 Defaults to `logging.json`
+
+## Acknowledgements
+
+This project was heavily inspired by [gplay-apk-downloader](https://github.com/alltechdev/gplay-apk-downloader)
+
+[GPlayApi](https://gitlab.com/AuroraOSS/gplayapi) for Google Play `.proto` files
+
+[Aurora Dispenser](https://gitlab.com/AuroraOSS/aurora-dispenser) for authentication so this project doesn't have to on its own
