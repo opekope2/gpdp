@@ -193,3 +193,6 @@ pyrightconfig.json
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
+
+*_pb2.py
+*_pb2.pyi

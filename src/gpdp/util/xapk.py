@@ -1,8 +1,13 @@
 from typing import Annotated
 
-from gpapi.googleplay_pb2 import AndroidAppDeliveryData, AppFileMetadata, DocV2
-from gpapi.googleplay_pb2 import Split as SplitAPK
 from pydantic import BaseModel, Field, PlainSerializer
+
+from gpdp.proto.GooglePlay_pb2 import (
+    AndroidAppDeliveryData,
+    AppFileMetadata,
+    Item,
+    SplitDeliveryData,
+)
 
 BASE_ID = "base"
 BASE_NAME = f"{BASE_ID}.apk"
@@ -15,7 +20,7 @@ XAPK_VERSION_2 = 2
 INSTALL_LOCATION_EXTERNAL_STORAGE = "EXTERNAL_STORAGE"
 
 
-def split_name(split: SplitAPK):
+def split_name(split: SplitDeliveryData):
     return f"split_{split.name}.apk"
 
 
@@ -27,10 +32,10 @@ def obb_path(package: str, obb: AppFileMetadata):
     return f"{OBB_PATH}/{package}/{obb_name(package, obb)}"
 
 
-def create_manifest(app: DocV2, delivery: AndroidAppDeliveryData, has_icon: bool):
-    package = app.docid
+def create_manifest(app: Item, delivery: AndroidAppDeliveryData, has_icon: bool):
+    package = app.id
     details = app.details.appDetails
-    splits = [Split(file=split_name(s), id=s.name) for s in delivery.split]
+    splits = [Split(file=split_name(s), id=s.name) for s in delivery.splitDeliveryData]
 
     return Manifest(
         name=app.title,
@@ -38,12 +43,12 @@ def create_manifest(app: DocV2, delivery: AndroidAppDeliveryData, has_icon: bool
         version_code=details.versionCode,
         version_name=details.versionString,
         icon=ICON_NAME if has_icon else ICON_NONE,
-        total_size=details.installationSize,
+        total_size=details.infoDownloadSize,
         # min_sdk_version="",  # TODO
         # max_sdk_version="",  # TODO
         # target_sdk_version="",  # TODO
         permissions=list(details.permission),
-        split_configs=[s.name for s in delivery.split],
+        split_configs=[s.name for s in delivery.splitDeliveryData],
         split_apks=[Split(file=BASE_NAME, id=BASE_ID), *splits],
         expansions=[
             Expansion(

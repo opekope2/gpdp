@@ -4,22 +4,29 @@ from collections.abc import Awaitable, Callable
 from http import HTTPMethod
 
 from fastapi import HTTPException, status
-from gpapi.googleplay import CONTENT_TYPE_PROTO, DELIVERY_URL, DETAILS_URL, PURCHASE_URL
-from gpapi.googleplay_pb2 import AndroidAppDeliveryData, DocV2, ResponseWrapper
 from httpx import AsyncClient, Response
 
-from gpdp.http.content_types import CONTENT_TYPE_X_WWW_FORM_URLENCODED
+from gpdp.http.content_types import (
+    CONTENT_TYPE_PROTOBUF,
+    CONTENT_TYPE_X_WWW_FORM_URLENCODED,
+)
 from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
+from gpdp.proto.GooglePlay_pb2 import AndroidAppDeliveryData, Item, ResponseWrapper
 from gpdp.services import play_auth
 from gpdp.services.play_auth import PlayAuthService
 from gpdp.util import logging, xapk, zip
 from gpdp.util.logging import PKG, STATUS
 from gpdp.util.zip import FileHeader
 
+FDFE_URL = "https://android.clients.google.com/fdfe"
+DETAILS_URL = f"{FDFE_URL}/details"
+DELIVERY_URL = f"{FDFE_URL}/delivery"
+PURCHASE_URL = f"{FDFE_URL}/purchase"
+
 IMAGE_TYPE_ICON = 4
 
 
-def icon(app: DocV2):
+def icon(app: Item):
     return next(img for img in app.image if img.imageType == IMAGE_TYPE_ICON)
 
 
@@ -44,8 +51,8 @@ class PlayApiService:
     @logging.package_request_info("Getting details")
     async def app_details(self, package: str):
         headers = self.auth.headers() | {
-            ACCEPT: CONTENT_TYPE_PROTO,
-            CONTENT_TYPE: CONTENT_TYPE_PROTO,
+            ACCEPT: CONTENT_TYPE_PROTOBUF,
+            CONTENT_TYPE: CONTENT_TYPE_PROTOBUF,
         }
         res = await self.request(
             lambda: self.http.get(f"{DETAILS_URL}?doc={package}", headers=headers)
@@ -61,8 +68,8 @@ class PlayApiService:
         response = ResponseWrapper()
         response.ParseFromString(res.content)
 
-        app = response.payload.detailsResponse.docV2
-        if not app.docid:
+        app = response.payload.detailsResponse.item
+        if not app.id:
             self.logger.error(
                 "Not available", extra={PKG: package, STATUS: res.status_code}
             )
@@ -73,7 +80,7 @@ class PlayApiService:
         return app
 
     @logging.package_request_info("Purchasing")
-    async def purchase(self, package: str, app: DocV2):
+    async def purchase(self, package: str, app: Item):
         for offer in app.offer:
             if offer.offerType == 1 and offer.micros > 0:
                 price = offer.formattedAmount or "paid"
@@ -86,7 +93,7 @@ class PlayApiService:
                 )
 
         headers = self.auth.headers() | {
-            ACCEPT: CONTENT_TYPE_PROTO,
+            ACCEPT: CONTENT_TYPE_PROTOBUF,
             CONTENT_TYPE: CONTENT_TYPE_X_WWW_FORM_URLENCODED,
         }
         data = {"doc": package, "ot": 1, "vc": app.details.appDetails.versionCode}
@@ -105,11 +112,11 @@ class PlayApiService:
 
     @logging.package_request_info("Delivering")
     async def app_delivery(
-        self, package: str, ver_code: int, app: DocV2, purchased: bool = False
+        self, package: str, ver_code: int, app: Item, purchased: bool = False
     ):
         headers = self.auth.headers() | {
-            ACCEPT: CONTENT_TYPE_PROTO,
-            CONTENT_TYPE: CONTENT_TYPE_PROTO,
+            ACCEPT: CONTENT_TYPE_PROTOBUF,
+            CONTENT_TYPE: CONTENT_TYPE_PROTOBUF,
         }
         res = await self.request(
             lambda: self.http.get(
@@ -143,12 +150,12 @@ class PlayApiService:
 
         return delivery
 
-    async def download_icon(self, app: DocV2):
+    async def download_icon(self, app: Item):
         # TODO headers
         res = await self.request(lambda: self.http.get(icon(app).imageUrl))
         if res.is_error:
             self.logger.warning(
-                "Icon download failed", extra={PKG: app.docid, STATUS: res.status_code}
+                "Icon download failed", extra={PKG: app.id, STATUS: res.status_code}
             )
             return
 
@@ -160,7 +167,8 @@ class PlayApiService:
     ):
         base_apk = FileHeader(now, delivery.downloadSize, xapk.BASE_NAME, b"", "")
         split_entries = [
-            FileHeader(now, s.size, xapk.split_name(s), b"", "") for s in delivery.split
+            FileHeader(now, s.downloadSize, xapk.split_name(s), b"", "")
+            for s in delivery.splitDeliveryData
         ]
         additional_entries = [
             FileHeader(now, f.size, xapk.obb_path(package, f), b"", "")
@@ -197,7 +205,7 @@ class PlayApiService:
         async for chunk in self.stream_file(e.popleft(), delivery.downloadUrl, headers):
             yield chunk
 
-        for s in delivery.split:
+        for s in delivery.splitDeliveryData:
             async for chunk in self.stream_file(e.popleft(), s.downloadUrl, headers):
                 yield chunk
 

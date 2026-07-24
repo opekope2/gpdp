@@ -1,14 +1,15 @@
 import pydantic
-from gpapi.googleplay_pb2 import DocV2
 from pydantic import BaseModel
+
+from gpdp.proto.GooglePlay_pb2 import Item
 
 LINK_PREFIX = "obtainium://app/"
 
 
-def create_app(url: str, app: DocV2):
+def create_app(url: str, app: Item):
     details = app.details.appDetails
     return App(
-        id=app.docid,
+        id=app.id,
         url=url,
         author=details.developerName,
         name=app.title,
@@ -38,7 +39,7 @@ def create_app(url: str, app: DocV2):
             allowInsecure=False,
             exemptFromBackgroundUpdates=False,
             skipUpdateNotifications=False,
-            about=app.descriptionShort,
+            about=app.promotionalDescription,
             refreshBeforeDownload=False,
         ),
     )
