@@ -24,4 +24,4 @@ USER gpdp
 
 EXPOSE 8000
 
-CMD ["uvicorn", "gpdp.server:app"]
+CMD ["uvicorn", "gpdp.server:app", "--host", "0.0.0.0"]
