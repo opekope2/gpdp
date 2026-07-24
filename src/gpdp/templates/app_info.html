@@ -4,6 +4,10 @@
 
 <link rel="icon" href="{{ icon_url }}" />
 
+{% if config.add_to_obtainium and details.versionCode != 0 %}
+<meta http-equiv="refresh" content="0; url=obtainium://app/{{ obtainium_config }}">
+{% endif %}
+
 {% endblock %}
 
 {% block body %}

@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
 import gpdp.dependency_injection as deps
+from gpdp.config import Config
 from gpdp.http.content_types import CONTENT_TYPE_HTML
 from gpdp.http.headers import ACCEPT, CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
 from gpdp.services.play_api import PlayApiService, icon
@@ -125,6 +126,7 @@ async def app_info(
     req: Request,
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
+    config: Annotated[Config, Depends(deps.config)],
 ):
     app = await play_api.app_details(package_id)
     details = app.details.appDetails
@@ -145,6 +147,7 @@ async def app_info(
             "title": app.title,
             "app": app,
             "details": details,
+            "config": config,
             "package": package_id,
             "version_code": details.versionCode,
             "icon_url": icon(app).imageUrl,
