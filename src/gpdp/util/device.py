@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from jproperties import Properties
 from pydantic import BaseModel, Field
 
@@ -56,9 +58,8 @@ class DeviceProperties(BaseModel):
 
 
 def load(file: str):
-    with open(file, "rb") as f:
-        props = Properties()
-        props.load(f)
-        return DeviceProperties.model_validate(
-            {key: value.data for key, value in props.items()}
-        )
+    props = Properties()
+    props.load(Path(file).read_text())
+    return DeviceProperties.model_validate(
+        {key: value.data for key, value in props.items()}
+    )

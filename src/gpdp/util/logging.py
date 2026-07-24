@@ -8,6 +8,7 @@ from collections.abc import Callable, Mapping
 from copy import copy
 from http import HTTPStatus
 from logging import Logger, LogRecord
+from pathlib import Path
 from typing import Concatenate, Literal, ParamSpec, Protocol, TypeVar, override
 
 from uvicorn import _ansi
@@ -22,8 +23,8 @@ STATUS = "status_code"
 
 def setup():
     logging_conf = os.getenv(ENV_LOGGING_CONF, DEFAULT_LOGGING_CONF)
-    with open(logging_conf, encoding="utf-8") as logging_json:
-        logging.config.dictConfig(json.load(logging_json))
+    logging_json = Path(logging_conf).read_text()
+    logging.config.dictConfig(json.loads(logging_json))
 
 
 def get_logger(self: object):
