@@ -8,7 +8,6 @@ from fastapi import (
     Depends,
     FastAPI,
     Form,
-    HTTPException,
     Path,
     Request,
     Response,
@@ -18,6 +17,7 @@ from fastapi import (
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException
 
 import gpdp.dependency_injection as deps
 from gpdp.http.content_types import CONTENT_TYPE_HTML
@@ -49,6 +49,7 @@ async def handle_error(req: Request, e: HTTPException):
             "title": f"Error {e.status_code}",
             "error": e,
         },
+        e.status_code,
     )
 
 
