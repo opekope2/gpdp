@@ -97,6 +97,7 @@ class ColorfulFormatter(ColourizedFormatter):
     @override
     def formatMessage(self, record: LogRecord):
         record = copy(record)
+        format = _ansi.style if self.use_colors else lambda text, _: text
         status_code = 0
         if hasattr(record, STATUS):
             status_code = getattr(record, STATUS)
@@ -107,14 +108,10 @@ class ColorfulFormatter(ColourizedFormatter):
                 status = getattr(record, STATUS)
                 setattr(record, STATUS, self.format_status(status_code, status))
 
-            for extra, fg in self.extra_colors.items():
-                if not hasattr(record, extra):
-                    setattr(record, extra, "")
-                else:
-                    setattr(record, extra, _ansi.style(getattr(record, extra), fg=fg))
-        else:
-            for extra, _ in self.extra_colors.items():
-                if not hasattr(record, extra):
-                    setattr(record, extra, "")
+        colorful_record = {
+            extra: format(getattr(record, extra), fg) if hasattr(record, extra) else ""
+            for extra, fg in self.extra_colors.items()
+        }
+        record.__dict__.update(colorful_record)
 
         return super().formatMessage(record)
