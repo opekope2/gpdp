@@ -10,3 +10,12 @@ h1,
     height: auto;
     border-radius: calc(0.5 * var(--h1-font-size));
 }
+
+.about,
+.changelog {
+    padding: 0 var(--pico-spacing);
+}
+
+.top-spacing {
+    margin-top: var(--pico-typography-spacing-vertical);
+}

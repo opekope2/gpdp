@@ -4,6 +4,7 @@ import pathlib
 import urllib.parse
 from typing import Annotated
 
+import bleach
 from fastapi import (
     Depends,
     FastAPI,
@@ -115,6 +116,10 @@ async def download_xapk(
     )
 
 
+ALLOWED_TAGS = ["b", "i", "u", "font", "br"]
+ALLOWED_ATTRS = ["color"]
+
+
 @app.get("/{package_id}")
 async def app_info(
     req: Request,
@@ -124,6 +129,14 @@ async def app_info(
     app = await play_api.app_details(package_id)
     details = app.details.appDetails
     obtainium_app = obtainium.create_app(str(req.url), app)
+
+    about = bleach.clean(app.descriptionHtml, ALLOWED_TAGS, ALLOWED_ATTRS, strip=True)
+    about = bleach.linkify(about)
+
+    changes = bleach.clean(
+        details.recentChangesHtml, ALLOWED_TAGS, ALLOWED_ATTRS, strip=True
+    )
+    changes = bleach.linkify(changes)
 
     return templates.TemplateResponse(
         req,
@@ -136,5 +149,7 @@ async def app_info(
             "version_code": details.versionCode,
             "icon_url": icon(app).imageUrl,
             "obtainium_config": urllib.parse.quote(obtainium_app.model_dump_json()),
+            "about": about,
+            "changes": changes,
         },
     )
