@@ -7,6 +7,12 @@
 3. Install the project using `pip install -e ".[dev]"`
 4. Run `scripts/generate_protos.py` to generate the needed Protobuf files
 
+## Development
+
+GPDP will get a token from the configured dispenser on startup.
+To reduce the number of requests towards the dispenser, run a cached dispenser and set it in `config.json`: `scripts/cached_dispenser.py [DISPENSER_URL] [DEVICE_PROPERTIES]`.
+Optionally specify the `HOST` and/or `PORT` environment variables.
+
 ## Running
 
 Run `uvicorn gpdp.server:app`
