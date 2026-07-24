@@ -1,5 +1,7 @@
 .git
 .github
+.gitkeep
+.gitignore
 .vscode
 dist
 build
@@ -21,3 +23,5 @@ Dockerfile
 compose.yml
 compose.*.yml
 docker-compose*.yml
+*.properties
+*.json
