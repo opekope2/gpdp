@@ -12,6 +12,8 @@ FROM python:slim
 
 WORKDIR /app
 
+COPY --from=builder /build/logging.json /app/
+
 COPY --from=builder /build/dist/*.whl /tmp/
 
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=ignore

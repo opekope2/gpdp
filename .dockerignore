@@ -24,4 +24,3 @@ compose.yml
 compose.*.yml
 docker-compose*.yml
 *.properties
-*.json
