@@ -15,7 +15,7 @@
 <main class="container">
     <hgroup>
         <img src="{{ icon_url }}" alt="{{ app.title }} icon" class="icon" />
-        <h1>{{ app.title }}</h1>
+        <h1><span class="title">{{ app.title }}</span></h1>
         <span class="developer">{{ details.developerName }}</span>
     </hgroup>
 
@@ -27,12 +27,12 @@
         </tr>
         <tr>
             <td>Updated on</td>
-            <td><span class="upload_date">{{ details.infoUpdatedOn }}</span></td>
+            <td><span class="update-date">{{ details.infoUpdatedOn }}</span></td>
         </tr>
         {% endif %}
         <tr>
             <td>Application ID</td>
-            <td><span class="package_id">{{ package }}</span></td>
+            <td><span class="package-id">{{ package }}</span></td>
         </tr>
     </table>
 
