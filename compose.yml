@@ -7,6 +7,6 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - ./gpdp.properties:/app/gpdp.properties
-      - ./device.properties:/app/device.properties
-      # - ./logging.json:/app/logging.json
+      - ./gpdp.properties:/app/gpdp.properties:ro
+      - ./device.properties:/app/device.properties:ro
+      # - ./logging.json:/app/logging.json:ro
