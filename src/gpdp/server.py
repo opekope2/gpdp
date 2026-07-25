@@ -87,7 +87,7 @@ async def download_xapk(
     now = datetime.datetime.now()
     app = await play_api.app_details(package_id, locale)
     delivery, icon = await asyncio.gather(
-        play_api.app_delivery(package_id, version_code, app, locale),
+        play_api.app_delivery(app, version_code, locale),
         play_api.download_icon(app),
     )
     entries = play_api.xapk_create_entries(package_id, delivery, now)

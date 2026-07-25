@@ -79,13 +79,13 @@ class PlayApiService:
 
         return app
 
-    @logging.package_request_info("Purchasing")
-    async def purchase(self, package: str, app: Item, locale: str):
+    @logging.app_request_info("Purchasing")
+    async def purchase(self, app: Item, ver_code: int, locale: str):
         for offer in app.offer:
             if offer.offerType == 1 and offer.micros > 0:
                 price = offer.formattedAmount or "paid"
                 self.logger.error(
-                    "Purchase failed: paid app: %s", price, extra={PKG: package}
+                    "Purchase failed: paid app: %s", price, extra={PKG: app.id}
                 )
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -96,26 +96,25 @@ class PlayApiService:
             ACCEPT: CONTENT_TYPE_PROTOBUF,
             CONTENT_TYPE: CONTENT_TYPE_X_WWW_FORM_URLENCODED,
         }
-        data = {"doc": package, "ot": 1, "vc": app.details.appDetails.versionCode}
+        data = {"doc": app.id, "ot": 1, "vc": ver_code}
 
         res = await self.request(
             lambda: self.http.post(PURCHASE_URL, headers=headers, data=data)
         )
         if res.is_success:
             self.logger.info(
-                "Purchase successful", extra={PKG: package, STATUS: res.status_code}
+                "Purchase successful", extra={PKG: app.id, STATUS: res.status_code}
             )
         else:
             self.logger.warning(
-                "Purchase failed", extra={PKG: package, STATUS: res.status_code}
+                "Purchase failed", extra={PKG: app.id, STATUS: res.status_code}
             )
 
-    @logging.package_request_info("Delivering")
+    @logging.app_request_info("Delivering")
     async def app_delivery(
         self,
-        package: str,
-        ver_code: int,
         app: Item,
+        ver_code: int,
         locale: str,
         purchased: bool = False,
     ):
@@ -125,12 +124,12 @@ class PlayApiService:
         }
         res = await self.request(
             lambda: self.http.get(
-                f"{DELIVERY_URL}?doc={package}&ot=1&vc={ver_code}", headers=headers
+                f"{DELIVERY_URL}?doc={app.id}&ot=1&vc={ver_code}", headers=headers
             )
         )
         if res.is_error:
             self.logger.error(
-                "Delivery not available", extra={PKG: package, STATUS: res.status_code}
+                "Delivery not available", extra={PKG: app.id, STATUS: res.status_code}
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not available"
@@ -142,14 +141,12 @@ class PlayApiService:
 
         if not delivery.downloadUrl:
             if not purchased:
-                await self.purchase(package, app, locale)
-                return await self.app_delivery(
-                    package, ver_code, app, locale, purchased=True
-                )
+                await self.purchase(app, ver_code, locale)
+                return await self.app_delivery(app, ver_code, locale, purchased=True)
 
             self.logger.error(
                 "Download not available",
-                extra={PKG: package, STATUS: res.status_code},
+                extra={PKG: app.id, STATUS: res.status_code},
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Download not available"
