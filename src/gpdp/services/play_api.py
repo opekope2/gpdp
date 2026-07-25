@@ -49,8 +49,8 @@ class PlayApiService:
         return res
 
     @logging.package_request_info("Getting details")
-    async def app_details(self, package: str):
-        headers = self.auth.headers() | {
+    async def app_details(self, package: str, locale: str):
+        headers = self.auth.headers(locale) | {
             ACCEPT: CONTENT_TYPE_PROTOBUF,
             CONTENT_TYPE: CONTENT_TYPE_PROTOBUF,
         }
@@ -80,7 +80,7 @@ class PlayApiService:
         return app
 
     @logging.package_request_info("Purchasing")
-    async def purchase(self, package: str, app: Item):
+    async def purchase(self, package: str, app: Item, locale: str):
         for offer in app.offer:
             if offer.offerType == 1 and offer.micros > 0:
                 price = offer.formattedAmount or "paid"
@@ -92,7 +92,7 @@ class PlayApiService:
                     detail=f"Paid app: {price}",
                 )
 
-        headers = self.auth.headers() | {
+        headers = self.auth.headers(locale) | {
             ACCEPT: CONTENT_TYPE_PROTOBUF,
             CONTENT_TYPE: CONTENT_TYPE_X_WWW_FORM_URLENCODED,
         }
@@ -112,9 +112,14 @@ class PlayApiService:
 
     @logging.package_request_info("Delivering")
     async def app_delivery(
-        self, package: str, ver_code: int, app: Item, purchased: bool = False
+        self,
+        package: str,
+        ver_code: int,
+        app: Item,
+        locale: str,
+        purchased: bool = False,
     ):
-        headers = self.auth.headers() | {
+        headers = self.auth.headers(locale) | {
             ACCEPT: CONTENT_TYPE_PROTOBUF,
             CONTENT_TYPE: CONTENT_TYPE_PROTOBUF,
         }
@@ -137,8 +142,10 @@ class PlayApiService:
 
         if not delivery.downloadUrl:
             if not purchased:
-                await self.purchase(package, app)
-                return await self.app_delivery(package, ver_code, app, purchased=True)
+                await self.purchase(package, app, locale)
+                return await self.app_delivery(
+                    package, ver_code, app, locale, purchased=True
+                )
 
             self.logger.error(
                 "Download not available",

@@ -55,6 +55,11 @@ GPDP will try to refresh the token using the token dispenser if Google Play retu
 
 If set to true, GPDP will try to automatically add the apps to Obtainium if viewed from a browser (no JavaScript).
 
+#### `play.locale.default`
+
+The fallback language to use for Google Play queries.
+Used when the client doesn't specify an `Accept-Language` header.
+
 ## Acknowledgements
 
 This project was heavily inspired by [gplay-apk-downloader](https://github.com/alltechdev/gplay-apk-downloader)

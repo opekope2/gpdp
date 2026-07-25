@@ -1,7 +1,8 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Header, Request
 from httpx import AsyncClient
 
 import gpdp.config
@@ -45,3 +46,11 @@ def play_auth(req: Request) -> PlayAuthService:
 
 def play_api(req: Request) -> PlayApiService:
     return req.app.state.play_api
+
+
+def locale(
+    config: Annotated[Config, Depends(config)],
+    accept_language: Annotated[str, Header()] = "",
+):
+    accept_language = accept_language or config.play_default_locale
+    return accept_language.split(",")[0].split(";")[0].strip()

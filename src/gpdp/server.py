@@ -82,11 +82,12 @@ async def download_xapk(
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
     version_code: Annotated[int, Path(gt=0)],
+    locale: Annotated[str, Depends(deps.locale)],
 ):
     now = datetime.datetime.now()
-    app = await play_api.app_details(package_id)
+    app = await play_api.app_details(package_id, locale)
     delivery, icon = await asyncio.gather(
-        play_api.app_delivery(package_id, version_code, app),
+        play_api.app_delivery(package_id, version_code, app, locale),
         play_api.download_icon(app),
     )
     entries = play_api.xapk_create_entries(package_id, delivery, now)
@@ -127,10 +128,11 @@ async def app_info(
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
     package_id: Annotated[str, Path(pattern=PACKAGE_ID_PATTERN)],
     config: Annotated[Config, Depends(deps.config)],
+    locale: Annotated[str, Depends(deps.locale)],
 ):
-    app = await play_api.app_details(package_id)
+    app = await play_api.app_details(package_id, locale)
     details = app.details.appDetails
-    obtainium_app = obtainium.create_app(str(req.url), app)
+    obtainium_app = obtainium.create_app(str(req.url), app, locale)
 
     about = bleach.clean(app.descriptionHtml, ALLOWED_TAGS, ALLOWED_ATTRS, strip=True)
     about = bleach.linkify(about)

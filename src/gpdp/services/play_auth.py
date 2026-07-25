@@ -109,7 +109,7 @@ class PlayAuthService:
             self.last_auth = int(time.time())
             await self._auth_dispenser()
 
-    def headers(self, accept_language: str = "en-US"):
+    def headers(self, accept_language: str):
         optional_headers = {
             "X-DFE-Device-Checkin-Consistency-Token": self.auth_bundle.device_consistency_token,  # noqa: E501
             "X-DFE-Device-Config-Token": self.auth_bundle.device_config_token,

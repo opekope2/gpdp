@@ -1,12 +1,13 @@
 import pydantic
 from pydantic import BaseModel
 
+from gpdp.http.headers import ACCEPT_LANGUAGE
 from gpdp.proto.GooglePlay_pb2 import Item
 
 LINK_PREFIX = "obtainium://app/"
 
 
-def create_app(url: str, app: Item):
+def create_app(url: str, app: Item, locale: str):
     details = app.details.appDetails
     return App(
         id=app.id,
@@ -23,7 +24,7 @@ def create_app(url: str, app: Item):
             reverseSort=False,
             sortByLastLinkSegment=False,
             versionExtractWholePage=True,
-            requestHeader=[],  # TODO
+            requestHeader=[RequestHeader(requestHeader=f"{ACCEPT_LANGUAGE}: {locale}")],
             defaultPseudoVersioningMethod="ETag",
             trackOnly=False,
             versionExtractionRegEx=r'<span class="version">(.+?)</span>',
@@ -45,6 +46,10 @@ def create_app(url: str, app: Item):
     )
 
 
+class RequestHeader(BaseModel):
+    requestHeader: str
+
+
 class AdditionalSettings(BaseModel):
     intermediateLink: list[str]
     customLinkFilterRegex: str
@@ -54,7 +59,7 @@ class AdditionalSettings(BaseModel):
     reverseSort: bool
     sortByLastLinkSegment: bool
     versionExtractWholePage: bool
-    requestHeader: list[str]
+    requestHeader: list[RequestHeader]
     defaultPseudoVersioningMethod: str
     trackOnly: bool
     versionExtractionRegEx: str
