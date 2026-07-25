@@ -1,6 +1,6 @@
 hgroup,
 h1,
-.actions {
+h4 {
     text-align: center;
 }
 
@@ -16,6 +16,6 @@ h1,
     padding: 0 var(--pico-spacing);
 }
 
-.top-spacing {
-    margin-top: var(--pico-typography-spacing-vertical);
+table {
+    table-layout: fixed;
 }

@@ -46,23 +46,13 @@
     </div>
 
     {% if changes %}
-    <hgroup class="top-spacing">
-        <h4>What's new</h2>
-    </hgroup>
-
-    <div class="changelog">
-        {{ changes | safe }}
-    </div>
+    <h4>What's new</h4>
+    <div class="changelog">{{ changes | safe }}</div>
     {% endif %}
 
     {% if about %}
-    <hgroup class="top-spacing">
-        <h4>About this app</h2>
-    </hgroup>
-
-    <div class="about">
-        {{ about | safe }}
-    </div>
+    <h4>About this app</h4>
+    <div class="about">{{ about | safe }}</div>
     {% endif %}
 </main>
 
