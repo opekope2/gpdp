@@ -7,6 +7,7 @@ from httpx import AsyncClient
 
 import gpdp.config
 from gpdp.config import DEFAULT_CONF, ENV_CONF, Config
+from gpdp.services.download import DownloadService
 from gpdp.services.play_api import PlayApiService
 from gpdp.services.play_auth import PlayAuthService
 from gpdp.util import logging
@@ -24,8 +25,9 @@ async def inject(app: FastAPI):
     async with AsyncClient(follow_redirects=True) as client:
         app.state.config = conf
         app.state.http_client = client
+        app.state.download = download = DownloadService(client)
         app.state.play_auth = play_auth = PlayAuthService(client, conf, dev)
-        app.state.play_api = PlayApiService(client, play_auth)
+        app.state.play_api = PlayApiService(download, play_auth, conf)
 
         await play_auth.auth_dispenser()  # TODO
 
@@ -38,6 +40,10 @@ def config(req: Request) -> Config:
 
 def http_client(req: Request) -> AsyncClient:
     return req.app.state.http_client
+
+
+def download(req: Request) -> DownloadService:
+    return req.app.state.download
 
 
 def play_auth(req: Request) -> PlayAuthService:

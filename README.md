@@ -55,6 +55,10 @@ GPDP will try to refresh the token using the token dispenser if Google Play retu
 
 If set to true, GPDP will try to automatically add the apps to Obtainium if viewed from a browser (no JavaScript).
 
+#### `play.download.compressed`
+
+If set to true, GPDP will download compressed files from Google Play and decompress them on the fly before packaging it into an XAPK.
+
 #### `play.locale.default`
 
 The fallback language to use for Google Play queries.

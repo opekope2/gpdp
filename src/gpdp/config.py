@@ -22,4 +22,5 @@ class Config(BaseModel):
     dispenser_url: str = Field(alias="dispenser.url")
     dispenser_refresh_cooldown: int = Field(alias="dispenser.refresh_cooldown")
     add_to_obtainium: bool = Field(alias="obtainium.auto_add")
+    play_download_compressed: bool = Field(alias="play.download.compressed")
     play_default_locale: str = Field(alias="play.locale.default")

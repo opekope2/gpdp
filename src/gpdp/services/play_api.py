@@ -1,11 +1,12 @@
 import datetime
 from collections import deque
 from collections.abc import Awaitable, Callable
-from http import HTTPMethod
+from typing import Protocol
 
 from fastapi import HTTPException, status
-from httpx import AsyncClient, Response
+from httpx import Response
 
+from gpdp.config import Config
 from gpdp.http.content_types import (
     CONTENT_TYPE_PROTOBUF,
     CONTENT_TYPE_X_WWW_FORM_URLENCODED,
@@ -13,6 +14,7 @@ from gpdp.http.content_types import (
 from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
 from gpdp.proto.GooglePlay_pb2 import AndroidAppDeliveryData, Item, ResponseWrapper
 from gpdp.services import play_auth
+from gpdp.services.download import DownloadService
 from gpdp.services.play_auth import PlayAuthService
 from gpdp.util import logging, xapk, zip
 from gpdp.util.logging import PKG, STATUS
@@ -30,10 +32,22 @@ def icon(app: Item):
     return next(img for img in app.image if img.imageType == IMAGE_TYPE_ICON)
 
 
+class DeliveryData(Protocol):
+    downloadUrl: str
+    compressedDownloadUrl: str
+
+
 class PlayApiService:
-    def __init__(self, http: AsyncClient, auth: PlayAuthService):
-        self.http = http
+    def __init__(
+        self,
+        download: DownloadService,
+        auth: PlayAuthService,
+        config: Config,
+    ):
+        self.http = download.http
+        self.download = download
         self.auth = auth
+        self.config = config
         self.logger = logging.get_logger(self)
 
     @play_auth.dispenser_error_to_fastapi
@@ -181,17 +195,20 @@ class PlayApiService:
 
         return [base_apk, *split_entries, *additional_entries]
 
-    # TODO gzip
     async def stream_file(
-        self, entry: zip.FileHeader, url: str, headers: dict[str, str]
+        self, entry: zip.FileHeader, delivery: DeliveryData, headers: dict[str, str]
     ):
+        if self.config.play_download_compressed:
+            download_url = delivery.compressedDownloadUrl
+            stream = self.download.stream_bytes_decompress(download_url, headers)
+        else:
+            stream = self.download.stream_bytes(delivery.downloadUrl, headers)
+
         yield entry.local_header()
 
-        async with self.http.stream(HTTPMethod.GET, url, headers=headers) as res:
-            res.raise_for_status()  # Response has already started so it won't reach the client  # noqa: E501
-            async for chunk in res.aiter_bytes():
-                entry.update_crc32(chunk)
-                yield chunk
+        async for chunk in stream:
+            entry.update_crc32(chunk)
+            yield chunk
 
         yield entry.data_descriptor()
 
@@ -206,15 +223,15 @@ class PlayApiService:
 
         e = deque(entries)
 
-        async for chunk in self.stream_file(e.popleft(), delivery.downloadUrl, headers):
+        async for chunk in self.stream_file(e.popleft(), delivery, headers):
             yield chunk
 
         for s in delivery.splitDeliveryData:
-            async for chunk in self.stream_file(e.popleft(), s.downloadUrl, headers):
+            async for chunk in self.stream_file(e.popleft(), s, headers):
                 yield chunk
 
         for f in delivery.additionalFile:
-            async for chunk in self.stream_file(e.popleft(), f.downloadUrl, headers):
+            async for chunk in self.stream_file(e.popleft(), f, headers):
                 yield chunk
 
         for f in extra_files:
