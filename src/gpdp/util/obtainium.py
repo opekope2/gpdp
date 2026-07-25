@@ -27,7 +27,7 @@ def create_app(url: str, app: Item, locale: str):
             requestHeader=[RequestHeader(requestHeader=f"{ACCEPT_LANGUAGE}: {locale}")],
             defaultPseudoVersioningMethod="ETag",
             trackOnly=False,
-            versionExtractionRegEx=r'<span class="version">(.+?)</span>',
+            versionExtractionRegEx=r'<span class="version">(.+?)<\/span>',
             matchGroupToUse="$1",
             versionDetection=True,
             useVersionCodeAsOSVersion=False,
