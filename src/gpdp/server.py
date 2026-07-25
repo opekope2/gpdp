@@ -77,6 +77,7 @@ def favicon():
     return Response(status_code=status.HTTP_204_NO_CONTENT)  # TODO
 
 
+# TODO range requests
 @app.get("/{package_id}-{version_code:int}.xapk")
 async def download_xapk(
     play_api: Annotated[PlayApiService, Depends(deps.play_api)],
