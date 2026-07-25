@@ -1,3 +1,4 @@
+CONTENT_TYPE_APK = "application/vnd.android.package-archive"
 CONTENT_TYPE_HTML = "text/html"
 CONTENT_TYPE_JSON = "application/json"
 CONTENT_TYPE_PROTOBUF = "application/x-protobuf"

@@ -22,13 +22,12 @@ from starlette.exceptions import HTTPException
 
 import gpdp.dependency_injection as deps
 from gpdp.config import Config
-from gpdp.http.content_types import CONTENT_TYPE_HTML
+from gpdp.http.content_types import CONTENT_TYPE_APK, CONTENT_TYPE_HTML
 from gpdp.http.headers import ACCEPT, CONTENT_DISPOSITION, CONTENT_LENGTH, ETAG
 from gpdp.services.play_api import PlayApiService, icon
 from gpdp.util import obtainium, xapk, zip
 from gpdp.util.zip import FileHeader
 
-MEDIA_TYPE_ZIP = "application/zip"
 PACKAGE_ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
 
 
@@ -110,7 +109,7 @@ async def download_xapk(
 
     return StreamingResponse(
         content=play_api.xapk_stream_download(delivery, entries, extra_files),
-        media_type=MEDIA_TYPE_ZIP,
+        media_type=CONTENT_TYPE_APK,
         headers={
             CONTENT_LENGTH: str(zip.file_size(entries)),
             CONTENT_DISPOSITION: f'attachment; filename="{package_id}-{version_code}.xapk"',  # noqa: E501
