@@ -46,7 +46,7 @@ def create_manifest(app: Item, delivery: AndroidAppDeliveryData, has_icon: bool)
         total_size=details.infoDownloadSize,
         # min_sdk_version="",  # TODO
         # max_sdk_version="",  # TODO
-        # target_sdk_version="",  # TODO
+        target_sdk_version=details.targetSdkVersion,
         permissions=list(details.permission),
         split_configs=[s.name for s in delivery.splitDeliveryData],
         split_apks=[Split(file=BASE_NAME, id=BASE_ID), *splits],
@@ -90,7 +90,7 @@ class Manifest(BaseModel):
     total_size: int
     # min_sdk_version: Annotated[int, STRING_SERIALIZER]  # TODO
     # max_sdk_version: Annotated[int, STRING_SERIALIZER]  # TODO
-    # target_sdk_version: Annotated[int, STRING_SERIALIZER]  # TODO
+    target_sdk_version: Annotated[int, STRING_SERIALIZER]
     permissions: list[str] = Field(default_factory=list)
     split_configs: list[str] = Field(default_factory=list)
     split_apks: list[Split] = Field(default_factory=list)
