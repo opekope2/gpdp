@@ -1,4 +1,5 @@
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -31,6 +32,8 @@ async def inject(app: FastAPI):
 
         await play_auth.auth_dispenser()  # TODO
 
+        app.state.startup_time = time.time()
+
         yield
 
 
@@ -52,6 +55,10 @@ def play_auth(req: Request) -> PlayAuthService:
 
 def play_api(req: Request) -> PlayApiService:
     return req.app.state.play_api
+
+
+def uptime(req: Request) -> float:
+    return time.time() - req.app.state.startup_time
 
 
 def locale(

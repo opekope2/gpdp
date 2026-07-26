@@ -15,7 +15,7 @@ from fastapi import (
     exception_handlers,
     status,
 )
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
@@ -74,6 +74,11 @@ def show_details(package_id: Annotated[str, Form(pattern=PACKAGE_ID_PATTERN)]):
 @app.get("/favicon.ico")
 def favicon():
     return Response(status_code=status.HTTP_204_NO_CONTENT)  # TODO
+
+
+@app.get("/health")
+def health(uptime: Annotated[float, Depends(deps.uptime)]):
+    return JSONResponse({"uptime": uptime})
 
 
 # TODO range requests
