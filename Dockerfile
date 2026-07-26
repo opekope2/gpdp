@@ -6,7 +6,7 @@ COPY . .
 
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=ignore
 
-RUN pip install build grpcio-tools && python scripts/generate_protos.py && python -m build --wheel
+RUN pip install build && python -m build --wheel
 
 FROM python:alpine
 
