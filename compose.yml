@@ -10,3 +10,13 @@ services:
       - ./gpdp.properties:/app/gpdp.properties:ro
       - ./device.properties:/app/device.properties:ro
       # - ./logging.json:/app/logging.json:ro
+
+  dispenser:
+    image: ghcr.io/opekope2/aurora-dispenser:latest
+    container_name: dispenser
+    restart: unless-stopped
+    # ports:
+    #   - 3000:3000
+    volumes:
+      - ./accounts.txt:/app/resources/accounts.txt:ro
+      # - ./logs:/logs
