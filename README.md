@@ -1,27 +1,81 @@
 # Google Play Download Proxy
 
+GPDP uses the Google Play API to generate HTML files with the application info, bridging the gap between [Obtainium](https://obtainium.imranr.dev/) and the Play Store.
+
+When downloading an app, GPDP retreives the (split) APK and OBB files, packs them into an XAPK file on the fly, and forwards it to the client. No files are stored in memory or on the disk, which allows obtaining large apps on limited system resources
+
+The developers are not affiliated with Google in any way.
+
+GPDP is meant to be run on an Android device using Termux, or self-hosted otherwise. There is no public instance. There will be no public instance by me.
+
+An instance of GPDP is designed to run using one Google account and one device configuration. Using multiple accounts or multiple device configurations requires running multiple instances.
+
+## Self-host
+
+See **Running** to get started.
+
+GPDP is not meant to be directly exposed to the Internet. Using a reverse proxy is highly recommended if running on different device than Obtainium.
+
+When configuring a reverse proxy, make sure to forward the `Host` header to GPDP, otherwise the Obtainium links will point to something like `127.0.0.1:3000`, which will not work from a different device
+
+GPDP doesn't support authentication. You can configure a reverse proxy to do this
+
 ## Development setup
 
-1. Set up a [virtual environment](https://docs.python.org/3/library/venv.html) using `python -m venv .venv`
-2. Activate the virtual environment using `. .venv/bin/activate`
-3. Install the project using `pip install -e ".[dev]"`
-4. Run `scripts/generate_protos.py` to generate the needed Protobuf files
+1. Set up and activate a virtual environment
 
-## Dispenser cache
+    ```sh
+    python -m "venv" .venv
+    . .venv/bin/activate
+    ```
+
+2. Install the project
+
+    This will generate the required `.py` and optional `.pyi` files from `.proto` files
+
+    ```sh
+    # Specify -e to enable hot reloading without installing again
+    pip install .                     # for just running
+    pip install -e ".[dev]"           # with development tools and types
+    pip install -e ".[dev,protobuf]"  # to develop setup.py & to remove the import error
+    ```
+
+### Dispenser cache for development
 
 GPDP will get a token from the configured dispenser on startup.
-To reduce the number of requests towards the dispenser, and consequently, Google, especially when auto reload is enabled, run a cached dispenser and set it in `config.properties`: `scripts/cached_dispenser.py [DISPENSER_URL] [DEVICE_PROPERTIES]`. This will query the dispenser located at `[DISPENSER_URL]` at startup, and serve its response until it is stopped.
-Optionally specify the `HOST` and/or `PORT` environment variables.
+To reduce the number of requests towards the dispenser, and consequently, Google, especially when auto reload is enabled, run a cached dispenser and set `dispenser.url` to it in `gpdp.properties`
+
+```sh
+python scripts/cached_dispenser.py DISPENSER_URL DEVICE_PROPERTIES
+HOST=127.0.0.1 PORT=3000 python scripts/cached_dispenser.py ...  # explicit host and port
+```
+
+This script queries the dispenser listening at `DISPENSER_URL` at startup, and serve its response until it is stopped
 
 ## Building
 
-Run `python -m build`
+You can install `build` in a virtual environment.
+
+```sh
+# 1. Install build frontend
+pip install build
+
+# 2. Build project
+pip -m build
+pip -m build --wheel  # only wheel
+```
 
 ## Running
 
-Set up and run an [Aurora Dispenser](https://gitlab.com/AuroraOSS/aurora-dispenser). Set its url in `gpdp.properties`
+1. Set up and run an [Aurora Dispenser](https://gitlab.com/AuroraOSS/aurora-dispenser). Set `dispenser.url` to it in `gpdp.properties`. Using a burner account is recommended  
+    Replacing Aurora Dispenser with first-party authentication is planned. This is required till then
+2. Run `uvicorn gpdp.server:app`. See [Uvicorn settings](https://uvicorn.dev/settings/) for more options
 
-Run `uvicorn gpdp.server:app`. See [Uvicorn settings](https://uvicorn.dev/settings/) for more options.
+### Docker
+
+GPDP is published to GHCR.
+An example `compose.yml` file is provided in this repository.
+It takes care of Aurora Dispenser. You only need to supply the config files
 
 ### Environment variables
 
