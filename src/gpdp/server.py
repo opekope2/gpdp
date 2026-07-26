@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import pathlib
 import urllib.parse
 from typing import Annotated
@@ -89,17 +88,18 @@ async def download_xapk(
     version_code: Annotated[int, Path(gt=0)],
     locale: Annotated[str, Depends(deps.locale)],
 ):
-    now = datetime.datetime.now()
     app = await play_api.app_details(package_id, locale)
     delivery, icon = await asyncio.gather(
         play_api.app_delivery(app, version_code, locale),
         play_api.download_icon(app),
     )
-    entries = play_api.xapk_create_entries(package_id, delivery, now)
+    entries = play_api.xapk_create_entries(app, delivery)
     extra_files: list[bytes] = []
 
+    launch = entries[0].last_mod_file_time_date
+
     if icon is not None:
-        icon_entry = FileHeader(now, len(icon), xapk.ICON_NAME, b"", "")
+        icon_entry = FileHeader(launch, len(icon), xapk.ICON_NAME, b"", "")
         entries.append(icon_entry)
         extra_files.append(icon)
 
@@ -108,7 +108,7 @@ async def download_xapk(
         .model_dump_json(exclude_defaults=True)
         .encode()
     )
-    manifest_entry = FileHeader(now, len(manifest), xapk.MANIFEST_NAME, b"", "")
+    manifest_entry = FileHeader(launch, len(manifest), xapk.MANIFEST_NAME, b"", "")
     entries.append(manifest_entry)
     extra_files.append(manifest)
 

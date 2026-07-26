@@ -1,22 +1,23 @@
 import datetime
+import email.utils
 from collections import deque
 from collections.abc import Awaitable, Callable
+from http import HTTPMethod
 from typing import Protocol
 
 from fastapi import HTTPException, status
-from httpx import Response
+from httpx import AsyncClient, Response
 
 from gpdp.config import Config
 from gpdp.http.content_types import (
     CONTENT_TYPE_PROTOBUF,
     CONTENT_TYPE_X_WWW_FORM_URLENCODED,
 )
-from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE
+from gpdp.http.headers import ACCEPT, CONTENT_TYPE, COOKIE, LAST_MODIFIED
 from gpdp.proto.GooglePlay_pb2 import AndroidAppDeliveryData, Item, ResponseWrapper
 from gpdp.services import play_auth
-from gpdp.services.download import DownloadService
 from gpdp.services.play_auth import PlayAuthService
-from gpdp.util import logging, xapk, zip
+from gpdp.util import decompress, logging, xapk, zip
 from gpdp.util.logging import PKG, STATUS
 from gpdp.util.zip import FileHeader
 
@@ -38,14 +39,8 @@ class DeliveryData(Protocol):
 
 
 class PlayApiService:
-    def __init__(
-        self,
-        download: DownloadService,
-        auth: PlayAuthService,
-        config: Config,
-    ):
-        self.http = download.http
-        self.download = download
+    def __init__(self, http: AsyncClient, auth: PlayAuthService, config: Config):
+        self.http = http
         self.auth = auth
         self.config = config
         self.logger = logging.get_logger(self)
@@ -179,17 +174,18 @@ class PlayApiService:
 
         return res.content
 
-    @logging.package_request_info("Creating XAPK")
-    def xapk_create_entries(
-        self, package: str, delivery: AndroidAppDeliveryData, now: datetime.datetime
-    ):
-        base_apk = FileHeader(now, delivery.downloadSize, xapk.BASE_NAME, b"", "")
+    @logging.app_request_info("Creating XAPK")
+    def xapk_create_entries(self, app: Item, delivery: AndroidAppDeliveryData):
+        details = app.details.appDetails
+        launch = datetime.datetime.fromtimestamp(details.appLaunch.time.timestamp)
+
+        base_apk = FileHeader(launch, delivery.downloadSize, xapk.BASE_NAME, b"", "")
         split_entries = [
-            FileHeader(now, s.downloadSize, xapk.split_name(s), b"", "")
+            FileHeader(launch, s.downloadSize, xapk.split_name(s), b"", "")
             for s in delivery.splitDeliveryData
         ]
         additional_entries = [
-            FileHeader(now, f.size, xapk.obb_path(package, f), b"", "")
+            FileHeader(launch, f.size, xapk.obb_path(app.id, f), b"", "")
             for f in delivery.additionalFile
         ]
 
@@ -198,19 +194,28 @@ class PlayApiService:
     async def stream_file(
         self, entry: zip.FileHeader, delivery: DeliveryData, headers: dict[str, str]
     ):
-        if self.config.play_download_compressed:
-            download_url = delivery.compressedDownloadUrl
-            stream = self.download.stream_bytes_decompress(download_url, headers)
-        else:
-            stream = self.download.stream_bytes(delivery.downloadUrl, headers)
+        compressed = self.config.play_download_compressed
+        url = delivery.compressedDownloadUrl if compressed else delivery.downloadUrl
 
-        yield entry.local_header()
+        async with self.http.stream(HTTPMethod.GET, url, headers=headers) as res:
+            res.raise_for_status()
 
-        async for chunk in stream:
-            entry.update_crc32(chunk)
-            yield chunk
+            last_modified = res.headers.get(LAST_MODIFIED)
+            if last_modified:
+                last_mod = email.utils.parsedate_to_datetime(last_modified)
+                entry.last_mod_file_time_date = last_mod
 
-        yield entry.data_descriptor()
+            stream = res.aiter_bytes()
+            if compressed:
+                stream = decompress.gzip_stream_decompress(stream)
+
+            yield entry.local_header()
+
+            async for chunk in stream:
+                entry.update_crc32(chunk)
+                yield chunk
+
+            yield entry.data_descriptor()
 
     async def xapk_stream_download(
         self,
@@ -236,6 +241,7 @@ class PlayApiService:
 
         for f in extra_files:
             entry = e.popleft()
+            entry.last_mod_file_time_date = entries[0].last_mod_file_time_date
 
             yield entry.local_header()
             entry.update_crc32(f)
