@@ -22,23 +22,34 @@ GPDP doesn't support authentication. You can configure a reverse proxy to do thi
 
 ## Development setup
 
-1. Set up and activate a virtual environment
+### Virtual environment
 
-    ```sh
-    python -m "venv" .venv
-    . .venv/bin/activate
-    ```
+Setting up a virtual environment is highly recommended
 
-2. Install the project
+```sh
+python -m "venv" .venv
+. .venv/bin/activate
+```
 
-    This will generate the required `.py` and optional `.pyi` files from `.proto` files
+### Installing the project
 
-    ```sh
-    # Specify -e to enable hot reloading without installing again
-    pip install .                     # for just running
-    pip install -e ".[dev]"           # with development tools and types
-    pip install -e ".[dev,protobuf]"  # to develop setup.py & to remove the import error
-    ```
+```sh
+# Specify -e to enable hot reloading without installing again
+pip install .                     # for just running
+pip install -e ".[dev]"           # with development tools and types
+pip install -e ".[dev,protobuf]"  # to develop setup.py & to remove the import error
+```
+
+This will generate the required `.py` and optional `.pyi` files from `.proto` files.
+
+### Manual `.proto` generation
+
+In case you need to generate the Python code from `.proto` files manually
+
+```sh
+pip install ".[protobuf]"
+python setup.py generate_protos
+```
 
 ### Dispenser cache for development
 
@@ -67,7 +78,7 @@ pip -m build --wheel  # only wheel
 
 ## Running
 
-1. Set up and run an [Aurora Dispenser](https://gitlab.com/AuroraOSS/aurora-dispenser). Set `dispenser.url` to it in `gpdp.properties`. Using a burner account is recommended  
+1. Set up and run an [Aurora Dispenser](https://github.com/opekope2/aurora-dispenser). Set `dispenser.url` to it in `gpdp.properties`. Using a burner account is recommended  
     Replacing Aurora Dispenser with first-party authentication is planned. This is required till then
 2. Run `uvicorn gpdp.server:app`. See [Uvicorn settings](https://uvicorn.dev/settings/) for more options
 
