@@ -10,13 +10,19 @@ GPDP is meant to be run on an Android device using Termux, or self-hosted otherw
 
 An instance of GPDP is designed to run using one Google account and one device configuration. Using multiple accounts or multiple device configurations requires running multiple instances.
 
+## Web app
+
+Using the web app to add an application to Obtainium is highly recommended, as the default Obtainium options will not recognize GPDP. This is an Obtainium limitation, and this is why the web app features an **Add to Obtainium** button for a two-click\* setup.
+
+\*depending on your browser and browser settings
+
 ## Self-host
 
 See **Running** to get started.
 
 GPDP is not meant to be directly exposed to the Internet. Using a reverse proxy is highly recommended if running on different device than Obtainium.
 
-When configuring a reverse proxy, make sure to forward the `Host` header to GPDP, otherwise the Obtainium links will point to something like `127.0.0.1:3000`, which will not work from a different device
+When configuring a reverse proxy, make sure to forward the `Host` header to GPDP, otherwise the Obtainium links will point to something like `127.0.0.1:8000`, which will not work from a different device
 
 GPDP doesn't support authentication. You can configure a reverse proxy to do this
 
